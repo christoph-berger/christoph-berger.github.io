@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#ffffff">
+<title>EEG Microstates | Interactive Companion</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+<header class="topbar"><div class="inner"><a class="brand" href="./">EEG Microstates</a><nav class="nav"><a class="current" href="./">Home</a><a href="visualization.html">Explorer</a><a href="handout.html">6 key points</a><a id="posterNav" href="poster.pdf">Poster</a></nav></div></header>
+<main class="site-shell">
+<section class="hero"><span class="eyebrow">Poster companion · interactive material</span><h1>A compact view of topographic dynamics</h1><p class="lead">Explore how continuously changing EEG scalp fields can be summarized by recurring dominant topographies and represented as a discrete microstate sequence.</p><div class="takehome"><strong>Take-home:</strong> Microstates capture dominant recurring configurations of the EEG field - a useful coarse-grained representation of brain dynamics, rather than a complete description of the underlying physiological state.</div></section>
+<section class="action-grid">
+<article class="action-card"><div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5 16 12l-6 3.5z"/></svg></div><h2>Interactive visualization</h2><p>Follow a real preprocessed EEG segment through momentary scalp topography, template similarity, global field power and the resulting microstate sequence.</p><div class="btnrow"><a class="btn" href="visualization.html">Open explorer →</a></div></article>
+<article class="action-card"><div class="icon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></div><h2>Six key points</h2><p>A concise conceptual introduction to what microstates represent, what discretization adds, and where interpretation should remain cautious.</p><div class="btnrow"><a class="btn" href="handout.html">Read handout →</a><a class="btn secondary" href="microstates-handout.pdf">PDF</a></div></article>
+<article class="action-card"><div class="icon"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg></div><h2>Conference poster</h2><p id="posterText">The poster PDF can be opened here once <strong>poster.pdf</strong> has been added to this folder.</p><div class="btnrow"><a id="posterButton" class="btn" href="poster.pdf">Open poster →</a></div></article>
+</section>
+<section class="qrbox"><img src="assets/qr-microstates.svg" alt="QR code to this microstates website"><div><h2>Permanent companion link</h2><p class="url">https://christoph-berger.github.io/microstates/</p><p>Use this URL and QR code on the poster. The content behind it can be updated later without changing the printed QR code.</p></div></section>
+</main><footer class="footer">EEG Microstates · interactive poster companion</footer>
+<script>
+(async()=>{try{const r=await fetch('poster.pdf',{method:'HEAD'});if(!r.ok)throw 0;document.getElementById('posterText').innerHTML='View or download the conference poster.'}catch(e){document.getElementById('posterButton').classList.add('disabled');document.getElementById('posterNav').style.opacity='.45';document.getElementById('posterNav').style.pointerEvents='none'}})();
+</script></body></html>
