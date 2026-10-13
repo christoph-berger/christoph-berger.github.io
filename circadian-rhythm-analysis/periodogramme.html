@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Periodogramme interaktiv – Zirkadiane Analysen in R</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕐</text></svg>">
+</head>
+<body>
+<main>
+<p><a href="./">Zurück zur Workshop-Seite</a></p>
+<h1>Periodogramme interaktiv</h1>
+<p class="lead">Simulierte Maus im Dauerdunkel: 10 Tage Laufradaktivität in 6-Minuten-Bins, endogene Periode τ = 23,6 h. Welche Periode steckt in den Daten?</p>
+
+<h2>1 · Das χ²-Periodogramm faltet die Zeitreihe</h2>
+<p>Für jede Testperiode wird die Messreihe in Stücke genau dieser Länge geschnitten und zeilenweise untereinandergelegt. <b>P</b> ist die Zahl der Messpunkte pro Testperiode (Spalten), <b>K</b> die Zahl vollständiger Zyklen (Zeilen), <b>N = K · P</b> die Zahl der verwendeten Messpunkte. Stimmt die Testperiode, stehen die Aktivitätsblöcke senkrecht übereinander, das Spaltenmittel wird scharf und Qₚ groß.</p>
+<div class="formula">       K · N · Σₕ (x̄ₕ − x̄)²
+Qₚ = ─────────────────────   ~ χ²(P − 1)
+          Σᵢ (xᵢ − x̄)²</div>
+
+<div class="ctrl">
+<label for="p">Testperiode</label>
+<input type="range" id="p" min="200" max="280" step="1" value="240">
+<output id="pv" for="p">24,0 h</output>
+</div>
+<div class="ctrl">
+<button data-p="240">24,0 h</button><button data-p="236">23,6 h (wahr)</button><button data-p="250">25,0 h</button>
+</div>
+<div class="stats">
+<div class="stat"><span>P (Spalten)</span><b id="mP">240</b></div>
+<div class="stat"><span>K (Zeilen)</span><b id="mK">10</b></div>
+<div class="stat"><span>N</span><b id="mN">2400</b></div>
+<div class="stat"><span>Qₚ</span><b id="mQ">0</b></div>
+</div>
+<p class="cap">Gefaltete Tabelle – jede Zeile ein Zyklus der Testperiode</p>
+<canvas id="fold" width="900" height="300" role="img" aria-label="Gefaltete Zeitreihe als Raster: Zeilen sind Zyklen der gewählten Testperiode."></canvas>
+<p class="cap">Spaltenmittel x̄ₕ – das mittlere Profil; Linie = Gesamtmittel x̄</p>
+<canvas id="prof" width="900" height="150" role="img" aria-label="Mittleres Profil über alle gefalteten Zyklen."></canvas>
+<p class="cap">Periodogramm – Qₚ über alle Testperioden; gestrichelt: Signifikanzschwelle p = 0,001</p>
+<canvas id="per" width="900" height="230" role="img" aria-label="Chi-Quadrat-Periodogramm mit Markierung der aktuellen Testperiode."></canvas>
+<p>Bei Testperiode = 24 h ist der Bruch ohne den Faktor N genau die <b>Interdaily Stability</b>: IS = Qₚ / N.</p>
+
+<h2>2 · Lomb-Scargle kommt mit Lücken zurecht</h2>
+<p>Das χ²-Periodogramm braucht eine lückenlose, gleichmäßig abgetastete Reihe. Fehlen Daten – Sensor abgelegt, Laufrad blockiert, Batterie leer –, muss man sie vorher auffüllen. Lomb-Scargle passt dagegen für jede Frequenz eine Sinuskurve nach der Methode der kleinsten Quadrate direkt an die vorhandenen Messzeitpunkte an.</p>
+<div class="ctrl">
+<label for="g">Fehlende Daten</label>
+<input type="range" id="g" min="0" max="60" step="5" value="0">
+<output id="gv" for="g">0 %</output>
+</div>
+<p class="cap">Rohdaten als Aktogramm (24-h-Zeilen) – farbig markiert: fehlende Abschnitte</p>
+<canvas id="gap" width="900" height="260" role="img" aria-label="Aktogramm der simulierten Daten mit markierten Datenlücken."></canvas>
+<p class="cap">Normierte Periodogramme – blau: Lomb-Scargle auf den vorhandenen Punkten; grau gestrichelt: χ² nach Auffüllen der Lücken mit dem Mittelwert</p>
+<canvas id="ls" width="900" height="230" role="img" aria-label="Vergleich von Lomb-Scargle- und Chi-Quadrat-Periodogramm bei Datenlücken."></canvas>
+<div class="stats">
+<div class="stat"><span>Gipfel Lomb-Scargle</span><b id="lsP">–</b></div>
+<div class="stat"><span>Gipfel χ² (aufgefüllt)</span><b id="chP">–</b></div>
+</div>
+<p>Bei diesem gut ausgeprägten Rhythmus finden beide Verfahren den Gipfel auch mit vielen Lücken. Der Unterschied liegt woanders: Das Auffüllen erfindet Messwerte und verflacht das Profil, und bei ungleichmäßig abgetasteten Daten – etwa einzelnen Blutproben oder Körpertemperatur zu unregelmäßigen Zeitpunkten – lässt sich das χ²-Periodogramm gar nicht erst anwenden. Lomb-Scargle arbeitet in beiden Fällen nur mit den tatsächlich gemessenen Punkten.</p>
+
+<h2>In R</h2>
+<div class="formula"># χ²-Periodogramm „von Hand“
+qp &lt;- function(x, P) {
+  K  &lt;- length(x) %/% P
+  xx &lt;- x[1:(K * P)]
+  m  &lt;- matrix(xx, nrow = K, byrow = TRUE)   # die gefaltete Tabelle
+  K * length(xx) * sum((colMeans(m) - mean(xx))^2) / sum((xx - mean(xx))^2)
+}
+P  &lt;- 200:280                                 # 6-min-Bins: 20–28 h
+Q  &lt;- sapply(P, qp, x = aktivitaet)
+plot(P / 10, Q, type = "l"); lines(P / 10, qchisq(0.999, P - 1), lty = 2)
+
+# Lomb-Scargle
+lomb::lsp(aktivitaet, times = zeit_h, from = 20, to = 28, type = "period")</div>
+
+<h2>Quellen</h2>
+<ul class="refs">
+<li>Sokolove, P. G. &amp; Bushell, W. N. (1978). The chi square periodogram: its utility for analysis of circadian rhythms. <i>Journal of Theoretical Biology</i>, 72, 131–160.</li>
+<li>Ruf, T. (1999). The Lomb-Scargle periodogram in biological rhythm research: analysis of incomplete and unequally spaced time-series. <i>Biological Rhythm Research</i>, 30(2), 178–201.</li>
+</ul>
+<footer>Simulierte Daten · <a href="./">Workshop-Seite</a></footer>
+</main>
+<script>
+(function(){
+const cs=()=>getComputedStyle(document.documentElement);
+let C={};function col(){const s=cs();C={ink:s.getPropertyValue('--ink').trim(),mut:s.getPropertyValue('--mut').trim(),line:s.getPropertyValue('--line').trim(),blue:s.getPropertyValue('--blue').trim(),or:s.getPropertyValue('--orange').trim(),night:s.getPropertyValue('--night').trim()}}
+col();
+let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+const N0=2400,tau=236,x=[];
+for(let i=0;i<N0;i++){const ph=((i-120)%tau+tau)%tau;x.push(ph<118?(rnd()<0.75?40+60*rnd():3*rnd()):(rnd()<0.06?25*rnd():0))}
+function chi2(x,P){const K=Math.floor(x.length/P),N=K*P;let m=0;for(let i=0;i<N;i++)m+=x[i];m/=N;const mh=new Float64Array(P);for(let i=0;i<N;i++)mh[i%P]+=x[i]/K;let sb=0,st=0;for(let h=0;h<P;h++)sb+=(mh[h]-m)**2;for(let i=0;i<N;i++)st+=(x[i]-m)**2;return{K,N,mh,m,Q:K*N*sb/st}}
+function crit(df){const z=3.0902;return df*Math.pow(1-2/(9*df)+z*Math.sqrt(2/(9*df)),3)}
+const Ps=[];for(let P=200;P<=280;P++)Ps.push(P);
+const per=Ps.map(P=>[P,chi2(x,P).Q,crit(P-1)]);
+const qmax=Math.max(...per.map(d=>Math.max(d[1],d[2])))*1.08;
+const fmtH=v=>v.toFixed(1).replace('.',',')+' h';
+function ctx(id){const c=document.getElementById(id),g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);g.font='14px IBM Plex Sans, sans-serif';return[g,c.width,c.height]}
+function drawFold(P){
+ const r=chi2(x,P);
+ pv.textContent=fmtH(P/10);mP.textContent=P;mK.textContent=r.K;mN.textContent=r.N;mQ.textContent=Math.round(r.Q).toLocaleString('de-DE');
+ let[g,W,H]=ctx('fold');const L=40,cw=(W-L-10)/P,rh=(H-20)/r.K;
+ g.fillStyle=C.mut;g.textAlign='right';
+ for(let k=0;k<r.K;k++){g.fillText(k+1,L-10,10+k*rh+rh/2+5);for(let h=0;h<P;h++){const v=x[k*P+h];if(v>0){g.globalAlpha=Math.min(1,.15+v/90);g.fillStyle=C.ink;g.fillRect(L+h*cw,10+k*rh+1,Math.max(cw,1),rh-2);g.globalAlpha=1;g.fillStyle=C.mut}}}
+ [g,W,H]=ctx('prof');const pm=Math.max(...r.mh,60),sy=v=>H-12-v/pm*(H-24);
+ g.fillStyle=C.blue;for(let h=0;h<P;h++)g.fillRect(L+h*cw,sy(r.mh[h]),Math.max(cw-.3,.8),H-12-sy(r.mh[h]));
+ g.strokeStyle=C.or;g.lineWidth=2;g.beginPath();g.moveTo(L,sy(r.m));g.lineTo(W-10,sy(r.m));g.stroke();
+ [g,W,H]=ctx('per');const sx=p=>L+(p-200)/80*(W-L-20),sq=v=>H-34-v/qmax*(H-50);
+ g.strokeStyle=C.line;g.lineWidth=1;g.beginPath();g.moveTo(L,H-34);g.lineTo(W-20,H-34);g.stroke();
+ g.setLineDash([6,5]);g.strokeStyle=C.mut;g.lineWidth=1.5;g.beginPath();per.forEach((d,i)=>i?g.lineTo(sx(d[0]),sq(d[2])):g.moveTo(sx(d[0]),sq(d[2])));g.stroke();g.setLineDash([]);
+ g.strokeStyle=C.blue;g.lineWidth=2.5;g.beginPath();per.forEach((d,i)=>i?g.lineTo(sx(d[0]),sq(d[1])):g.moveTo(sx(d[0]),sq(d[1])));g.stroke();
+ g.fillStyle=C.or;g.beginPath();g.arc(sx(P),sq(r.Q),7,0,7);g.fill();
+ g.fillStyle=C.mut;g.textAlign='center';[200,220,240,260,280].forEach(p=>g.fillText(p/10+' h',sx(p),H-12));
+}
+const slider=document.getElementById('p'),pv=document.getElementById('pv'),mP=document.getElementById('mP'),mK=document.getElementById('mK'),mN=document.getElementById('mN'),mQ=document.getElementById('mQ');
+slider.addEventListener('input',e=>drawFold(+e.target.value));
+document.querySelectorAll('button[data-p]').forEach(b=>b.addEventListener('click',()=>{slider.value=b.dataset.p;drawFold(+b.dataset.p)}));
+// Lomb-Scargle
+const blocks=[];{let s2=11;const r2=()=>{s2=(s2*16807)%2147483647;return s2/2147483647};const nb=N0/60;const ord=[...Array(nb).keys()].sort(()=>r2()-.5);blocks.push(...ord)}
+function mask(pct){const m=new Uint8Array(N0).fill(1);const nb=Math.round(blocks.length*pct/100);for(let j=0;j<nb;j++){const b=blocks[j];for(let i=b*60;i<b*60+60;i++)m[i]=0}return m}
+function lomb(t,y,P){const n=y.length;let mu=0;for(const v of y)mu+=v;mu/=n;let va=0;for(const v of y)va+=(v-mu)**2;va/=n-1;const w=2*Math.PI/P;let s2=0,c2=0;for(const ti of t){s2+=Math.sin(2*w*ti);c2+=Math.cos(2*w*ti)}const tt=Math.atan2(s2,c2)/(2*w);let yc=0,yss=0,cc=0,ss=0;for(let i=0;i<n;i++){const a=w*(t[i]-tt),c=Math.cos(a),s=Math.sin(a),d=y[i]-mu;yc+=d*c;yss+=d*s;cc+=c*c;ss+=s*s}return(yc*yc/cc+yss*yss/ss)/(2*va)}
+function drawGap(pct){
+ document.getElementById('gv').textContent=pct+' %';
+ const m=mask(pct);let[g,W,H]=ctx('gap');const L=40,rows=10,cw=(W-L-10)/240,rh=(H-20)/rows;g.textAlign='right';
+ for(let k=0;k<rows;k++){g.fillStyle=C.mut;g.fillText(k+1,L-10,10+k*rh+rh/2+5);for(let h=0;h<240;h++){const i=k*240+h;if(!m[i]){g.fillStyle=C.or;g.globalAlpha=.35;g.fillRect(L+h*cw,10+k*rh,cw+.5,rh);g.globalAlpha=1}else if(x[i]>0){g.fillStyle=C.ink;g.globalAlpha=Math.min(1,.15+x[i]/90);g.fillRect(L+h*cw,10+k*rh+1,Math.max(cw,1),rh-2);g.globalAlpha=1}}}
+ const t=[],y=[];let mu=0,cnt=0;for(let i=0;i<N0;i++)if(m[i]){t.push(i/10);y.push(x[i]);mu+=x[i];cnt++}mu/=cnt;
+ const xf=x.map((v,i)=>m[i]?v:mu);
+ const ls=Ps.map(P=>lomb(t,y,P/10)),ch=Ps.map(P=>chi2(xf,P).Q);const lm=Math.max(...ls),cm=Math.max(...ch);
+ [g,W,H]=ctx('ls');const sx=p=>L+(p-200)/80*(W-L-20),sq=v=>H-34-v*(H-50);
+ g.strokeStyle=C.line;g.lineWidth=1;g.beginPath();g.moveTo(L,H-34);g.lineTo(W-20,H-34);g.stroke();
+ g.setLineDash([6,5]);g.strokeStyle=C.mut;g.lineWidth=2;g.beginPath();ch.forEach((v,i)=>i?g.lineTo(sx(Ps[i]),sq(v/cm)):g.moveTo(sx(Ps[i]),sq(v/cm)));g.stroke();g.setLineDash([]);
+ g.strokeStyle=C.blue;g.lineWidth=2.5;g.beginPath();ls.forEach((v,i)=>i?g.lineTo(sx(Ps[i]),sq(v/lm)):g.moveTo(sx(Ps[i]),sq(v/lm)));g.stroke();
+ g.fillStyle=C.mut;g.textAlign='center';[200,220,240,260,280].forEach(p=>g.fillText(p/10+' h',sx(p),H-12));
+ document.getElementById('lsP').textContent=fmtH(Ps[ls.indexOf(lm)]/10);document.getElementById('chP').textContent=fmtH(Ps[ch.indexOf(cm)]/10);
+}
+const gs=document.getElementById('g');gs.addEventListener('input',e=>drawGap(+e.target.value));
+function all(){col();drawFold(+slider.value);drawGap(+gs.value)}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',all);
+document.fonts&&document.fonts.ready.then(all);all();
+})();
+</script>
+</body>
+</html>
