@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Feature-Labor – Zirkadiane Analysen in R</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕐</text></svg>">
+<style>
+main.wide{max-width:1240px}
+.lab{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;align-items:start}
+@media (max-width:980px){.lab{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:6px 28px}
+.sl{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:6px 0}
+.sl label{font-size:15px}
+.sl output{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--mut)}
+.sl input,.sl select{grid-column:1/-1;width:100%;accent-color:var(--blue);font:inherit;font-size:15px}
+.sl select{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 2px}
+.presets button[aria-pressed=true]{border-color:var(--blue);background:color-mix(in srgb,var(--blue) 14%,var(--card))}
+.kw{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.kw{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kw div{background:var(--bg);border-radius:10px;padding:8px 10px}
+.kw span{display:block;font-size:12.5px;color:var(--mut)}
+.kw b{font-family:'IBM Plex Mono',monospace;font-size:19px}
+.note{border-left:4px solid var(--orange);padding:10px 14px;background:var(--card);border-radius:0 10px 10px 0;margin:14px 0 0}
+.note h3{margin:0 0 4px}
+.note p{margin:0}
+.side{position:sticky;top:calc(16px + env(safe-area-inset-top,0px))}
+@media (max-width:980px){.side{position:static}}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mut);margin-top:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+</style>
+</head>
+<body>
+<main class="wide">
+<p><a href="./">Zurück zur Workshop-Seite</a></p>
+<h1>Feature-Labor</h1>
+<p class="lead">Simulierte Aktigraphie-Daten mit Reglern. Jede Änderung berechnet IS, IV, RA, M10/L5 und den Cosinor neu – mit denselben Formeln wie in <code>R/funktionen.R</code>.</p>
+
+<div class="lab">
+<div>
+<div class="panel">
+<h3 style="margin-top:0">Sonderfälle</h3>
+<div class="presets" id="presets"></div>
+<div class="note" id="note"><h3></h3><p></p></div>
+</div>
+
+<div class="panel" style="margin-top:16px">
+<div class="sliders" id="sliders"></div>
+</div>
+
+<p class="cap">Aktogramm, doppelt geplottet (jede Zeile: Tag n und Tag n+1) – orange: fehlende Daten</p>
+<canvas id="akt" width="1200" height="330" role="img" aria-label="Doppelt geplottetes Aktogramm der simulierten Daten"></canvas>
+
+<p class="cap">Mittleres Tagesprofil mit Cosinor-Kurve, M10- und L5-Fenster</p>
+<canvas id="prof" width="1200" height="280" role="img" aria-label="Mittleres Tagesprofil mit Cosinor-Kurve sowie M10- und L5-Fenster"></canvas>
+<div class="legend">
+<span><i style="background:var(--orange);opacity:.35"></i>M10</span>
+<span><i style="background:var(--blue);opacity:.35"></i>L5</span>
+<span><i style="background:var(--ink)"></i>Cosinor</span>
+<span>│ gestrichelt: MESOR · ▲ Akrophase · ◆ M10-Onset</span>
+</div>
+</div>
+
+<div class="side">
+<div class="panel">
+<h3 style="margin-top:0">Kennwerte</h3>
+<div class="kw">
+<div><span>IS</span><b id="kIS">–</b></div>
+<div><span>IV</span><b id="kIV">–</b></div>
+<div><span>RA</span><b id="kRA">–</b></div>
+<div><span>R² Cosinor</span><b id="kR2">–</b></div>
+<div><span>M10-Onset</span><b id="kM10o">–</b></div>
+<div><span>L5-Onset</span><b id="kL5o">–</b></div>
+<div><span>Akrophase</span><b id="kAk">–</b></div>
+<div><span>Amplitude</span><b id="kAmp">–</b></div>
+</div>
+<p class="cap" style="margin-top:14px">IS gegen IV – der Punkt folgt den Reglern, die Spur zeigt den Weg</p>
+<canvas id="sc" width="660" height="560" role="img" aria-label="Scatterplot Interdaily Stability gegen Intradaily Variability mit Spur der letzten Einstellungen"></canvas>
+<div class="ctrl" style="margin:8px 0 0"><button id="clear">Spur löschen</button></div>
+</div>
+</div>
+</div>
+
+<h2>Was die Regler tun</h2>
+<ul>
+<li><b>Rhythmusstärke</b> – Unterschied zwischen aktiver Phase (7–23 Uhr) und Ruhephase.</li>
+<li><b>Phasen-Jitter</b> – zufällige Verschiebung des Tagesmusters von Tag zu Tag (Standardabweichung in Stunden).</li>
+<li><b>Fragmentierung</b> – kurze Ruhepausen am Tag und Aktivitätsspitzen in der Nacht.</li>
+<li><b>Profilform</b> – stufenlos von Sinuskurve (0) bis Rechteck (1).</li>
+<li><b>Auflösung</b> – Länge der Bins, in denen die 1-Minuten-Epochen aufsummiert werden. Klassisch: 60 min.</li>
+<li><b>Fehlende Daten</b> – zufällig entfernte 3-Stunden-Blöcke. Ein Bin zählt nur, wenn alle Epochen vorhanden sind.</li>
+</ul>
+<footer>Simulierte Daten · Formeln: Witting et al. (1990), Van Someren et al. (1999), Cosinor als lineares Modell · <a href="./">Workshop-Seite</a></footer>
+</main>
+
+<script>
+(function(){
+// ---------- Farben aus CSS ----------
+let C={};
+function col(){const s=getComputedStyle(document.documentElement);for(const k of['ink','mut','line','blue','orange','night','card','bg'])C[k]=s.getPropertyValue('--'+k).trim()}
+col();
+
+// ---------- Zufallszahlen (fest, damit Regler stetig wirken) ----------
+let seed=12345;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+const gauss=()=>{let u=0,v=0;while(!u)u=rnd();while(!v)v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
+const DMAX=14,EP=1440,NMAX=DMAX*EP;
+const U1=new Float64Array(NMAX),U2=new Float64Array(NMAX),U3=new Float64Array(NMAX),G=new Float64Array(NMAX);
+for(let i=0;i<NMAX;i++){U1[i]=rnd();U2[i]=rnd();U3[i]=rnd();G[i]=gauss()}
+const JIT=Array.from({length:DMAX+1},gauss);
+const NB15=NMAX/15,B1=new Float64Array(NB15),BG=new Float64Array(NB15);   // 15-min-Blöcke
+for(let i=0;i<NB15;i++){B1[i]=rnd();BG[i]=Math.exp(.55*gauss()-.15)}
+const DAYF=Array.from({length:DMAX+1},()=>Math.exp(.18*gauss()));          // Tagesniveau
+const BLOCKS=Array.from({length:DMAX*8},(_,i)=>i).sort(()=>rnd()-.5);
+
+// ---------- Regler ----------
+const S=[
+ {id:'days',lab:'Messtage',min:7,max:14,step:1,val:10,fmt:v=>v},
+ {id:'r',lab:'Rhythmusstärke',min:0,max:1,step:.05,val:.85,fmt:v=>v.toFixed(2)},
+ {id:'jit',lab:'Phasen-Jitter',min:0,max:4,step:.25,val:.5,fmt:v=>v.toFixed(2)+' h'},
+ {id:'frag',lab:'Fragmentierung',min:0,max:1,step:.05,val:.15,fmt:v=>v.toFixed(2)},
+ {id:'shape',lab:'Profilform (Sinus → Rechteck)',min:0,max:1,step:.05,val:.4,fmt:v=>v.toFixed(2)},
+ {id:'miss',lab:'Fehlende Daten',min:0,max:50,step:5,val:0,fmt:v=>v+' %'},
+ {id:'bin',lab:'Auflösung',sel:[1,5,10,15,30,60],val:60,fmt:v=>v+' min'}
+];
+const P={};const box=document.getElementById('sliders');
+S.forEach(s=>{
+ const d=document.createElement('div');d.className='sl';
+ const lab=`<label for="s_${s.id}">${s.lab}</label><output id="o_${s.id}"></output>`;
+ d.innerHTML=s.sel?lab+`<select id="s_${s.id}">${s.sel.map(v=>`<option value="${v}">${s.fmt(v)}</option>`).join('')}</select>`
+                 :lab+`<input type="range" id="s_${s.id}" min="${s.min}" max="${s.max}" step="${s.step}">`;
+ box.appendChild(d);
+ const el=d.querySelector('#s_'+s.id);el.value=s.val;P[s.id]=+s.val;
+ el.addEventListener('input',()=>{P[s.id]=+el.value;setPreset(null);update(true)});
+});
+function syncUI(){S.forEach(s=>{document.getElementById('s_'+s.id).value=P[s.id];document.getElementById('o_'+s.id).textContent=s.fmt(P[s.id])})}
+
+// ---------- Sonderfälle ----------
+const PRE=[
+ {k:'std',t:'Typischer Rhythmus',v:{days:10,r:.85,jit:.5,frag:.15,shape:.4,miss:0,bin:60},
+  h:'Ausgangspunkt',p:'Deutlicher, stabiler Rhythmus: IS hoch, IV niedrig, RA nahe 1. Von hier aus lohnt es sich, einzelne Regler zu verschieben und die Spur im Scatter zu verfolgen.'},
+ {k:'inst',t:'Instabil',v:{days:10,r:.85,jit:4,frag:.15,shape:.4,miss:0,bin:60},
+  h:'Instabil – aber rhythmisch',p:'Das Tagesmuster ist jeden Tag klar ausgeprägt, verschiebt sich aber von Tag zu Tag. IS fällt deutlich. Die RA bleibt vergleichsweise hoch, weil es an jedem Tag aktive und ruhige Phasen gibt – nur nicht zur selben Uhrzeit.'},
+ {k:'none',t:'Kein Rhythmus',v:{days:10,r:.05,jit:.5,frag:.15,shape:.4,miss:0,bin:60},
+  h:'Kein Rhythmus',p:'Auch hier ist IS niedrig – aus einem ganz anderen Grund: Es gibt kein Tagesmuster. Erst die RA trennt die beiden Fälle. Deshalb IS nie ohne ein Amplitudenmaß interpretieren.'},
+ {k:'glatt',t:'Glatt',v:{days:10,r:1,jit:0,frag:0,shape:0,miss:0,bin:60},
+  h:'Glatter Verlauf',p:'Sinusförmig, ohne Unterbrechungen: aufeinanderfolgende Stunden unterscheiden sich wenig, IV liegt nahe 0.'},
+ {k:'noise',t:'Rauschen',v:{days:10,r:0,jit:0,frag:1,shape:0,miss:0,bin:60},
+  h:'Reines Rauschen',p:'Unabhängige Werte ohne Struktur: die quadrierte Differenz zweier Nachbarn ist im Mittel doppelt so groß wie die Varianz – IV nähert sich 2, IS nähert sich 0.'},
+ {k:'res',t:'Auflösung 1 min',v:{days:10,r:.85,jit:.5,frag:.15,shape:.4,miss:0,bin:1},
+  h:'Zeitauflösung',p:'Dieselben Daten wie „Typischer Rhythmus“, aber in 1-Minuten-Bins: IV steigt stark, weil kurzfristige Schwankungen sichtbar werden, und IS sinkt. Auflösung immer berichten und konstant halten.'},
+ {k:'rect',t:'Rechteckprofil',v:{days:10,r:.9,jit:.25,frag:.1,shape:1,miss:0,bin:60},
+  h:'Rechteckiges Profil',p:'Ein breites Plateau von 7 bis 23 Uhr: Die Akrophase (Gipfel der Sinuskurve) liegt in der Mitte des Plateaus. Das M10-Fenster passt dagegen an vielen Stellen ins Plateau – sein Onset ist schlecht bestimmt und springt schon bei kleinen Änderungen. Der Cosinor erklärt weniger Varianz (R² sinkt), obwohl der Rhythmus sehr klar ist.'},
+ {k:'miss',t:'Datenlücken',v:{days:10,r:.85,jit:.5,frag:.15,shape:.4,miss:35,bin:60},
+  h:'Fehlende Daten',p:'Ein Drittel der Daten fehlt in 3-Stunden-Blöcken. Die Kennwerte verschieben sich, obwohl sich das Verhalten nicht geändert hat – und IV beruht nur noch auf Paaren gültiger Nachbarstunden. Bei ungleich verteilten Lücken kann IS sogar über 1 steigen, weil die Formel gleich viele Werte pro Tageszeit voraussetzt. Umgang mit Lücken immer berichten.'}
+];
+const pbox=document.getElementById('presets');
+PRE.forEach(pr=>{const b=document.createElement('button');b.textContent=pr.t;b.dataset.k=pr.k;b.setAttribute('aria-pressed','false');
+ b.addEventListener('click',()=>{Object.assign(P,pr.v);setPreset(pr.k);syncUI();update(true)});pbox.appendChild(b)});
+function setPreset(k){
+ document.querySelectorAll('#presets button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===k?'true':'false'));
+ const pr=PRE.find(p=>p.k===k);const n=document.getElementById('note');
+ if(pr){n.style.display='';n.querySelector('h3').textContent=pr.h;n.querySelector('p').textContent=pr.p}
+ else n.style.display='none';
+}
+
+// ---------- Simulation (1-Minuten-Epochen) ----------
+function simulate(){
+ const D=P.days,N=D*EP,x=new Float64Array(N),valid=new Uint8Array(N).fill(1);
+ for(let i=0;i<N;i++){
+  const day=Math.floor(i/EP);
+  const t=((i%EP)/60-JIT[day]*P.jit+48)%24;            // Uhrzeit, tagesweise verschoben
+  const sine=.5+.5*Math.cos(2*Math.PI*(t-15)/24);         // Gipfel 15 Uhr
+  const rect=1/(1+Math.exp(-4*(Math.min(t-7,23-t))));     // aktiv 7–23 Uhr, weiche Kanten
+  const base=(1-P.shape)*sine+P.shape*rect;
+  const blk=Math.floor(i/15);
+  let lvl=(1-P.r)*.5+P.r*base;                            // 0…1
+  if(B1[blk]<P.frag*.35) lvl=lvl>.5? .03 : .9;            // Fragmentierung: 15-min-Pausen / -Spitzen
+  const burst=U2[i]<.35+.6*lvl?1:0;                       // Aktivität kommt in Schüben
+  const bn=Math.pow(BG[blk],.25+.75*P.frag);                // Block-Schwankung wächst mit Fragmentierung
+  x[i]=Math.max(0,burst*lvl*(120+90*G[i]))*(1+U3[i])*bn*DAYF[day];
+ }
+ const nb=Math.round(P.miss/100*D*8);
+ for(let j=0;j<nb;j++){const b=BLOCKS.filter(v=>v<D*8)[j];for(let i=b*180;i<b*180+180&&i<N;i++)valid[i]=0}
+ return{x,valid,D,N};
+}
+
+// ---------- Bins ----------
+function binning(sim){
+ const bs=P.bin,nb=sim.N/bs,y=new Float64Array(nb);
+ for(let b=0;b<nb;b++){let s=0,ok=true;for(let i=b*bs;i<(b+1)*bs;i++){if(!sim.valid[i]){ok=false;break}s+=sim.x[i]}y[b]=ok?s:NaN}
+ return y;
+}
+
+// ---------- Kennwerte (wie funktionen.R) ----------
+function features(y){
+ const bs=P.bin,pd=1440/bs,n0=y.length;
+ const xx=[],ph=[];for(let i=0;i<n0;i++)if(!isNaN(y[i])){xx.push(y[i]);ph.push(i%pd)}
+ const n=xx.length;const m=xx.reduce((a,b)=>a+b,0)/n;
+ let sst=0;for(const v of xx)sst+=(v-m)**2;
+ const sum=new Float64Array(pd),cnt=new Float64Array(pd);
+ for(let k=0;k<n;k++){sum[ph[k]]+=xx[k];cnt[ph[k]]++}
+ const prof=Array.from(sum,(s,i)=>cnt[i]?s/cnt[i]:NaN);
+ let p=0,ssb=0;for(const v of prof)if(!isNaN(v)){p++;ssb+=(v-m)**2}
+ const IS=n*ssb/(p*sst);
+ let sd=0;for(let i=1;i<n0;i++){const d=y[i]-y[i-1];if(!isNaN(d))sd+=d*d}
+ const IV=n*sd/((n-1)*sst);
+ const win=h=>{const k=h*pd/24,out=[];for(let s=0;s<pd;s++){let a=0,c=0;for(let j=0;j<k;j++){const v=prof[(s+j)%pd];if(!isNaN(v)){a+=v;c++}}out.push(c?a/c:NaN)}return out};
+ const m10=win(10),l5=win(5);
+ let iM=0,iL=0;m10.forEach((v,i)=>{if(v>m10[iM])iM=i});l5.forEach((v,i)=>{if(v<l5[iL])iL=i});
+ const RA=(m10[iM]-l5[iL])/(m10[iM]+l5[iL]);
+ // Cosinor: y = M + b cos + g sin  (kleinste Quadrate)
+ let A=[[0,0,0],[0,0,0],[0,0,0]],r=[0,0,0];
+ for(let i=0;i<n0;i++){if(isNaN(y[i]))continue;const t=((i%pd)+.5)*bs/60,c=Math.cos(2*Math.PI*t/24),s=Math.sin(2*Math.PI*t/24),v=[1,c,s];
+  for(let a=0;a<3;a++){r[a]+=v[a]*y[i];for(let b=0;b<3;b++)A[a][b]+=v[a]*v[b]}}
+ const beta=solve3(A,r);const amp=Math.hypot(beta[1],beta[2]);
+ const ak=((-Math.atan2(-beta[2],beta[1])*24/(2*Math.PI))%24+24)%24;
+ let ssr=0;for(let i=0;i<n0;i++){if(isNaN(y[i]))continue;const t=((i%pd)+.5)*bs/60;const f=beta[0]+beta[1]*Math.cos(2*Math.PI*t/24)+beta[2]*Math.sin(2*Math.PI*t/24);ssr+=(y[i]-f)**2}
+ return{IS,IV,RA,M10o:iM*bs/60,L5o:iL*bs/60,ak,amp,mesor:beta[0],R2:1-ssr/sst,prof,pd};
+}
+function solve3(A,b){const M=A.map((r,i)=>[...r,b[i]]);for(let i=0;i<3;i++){let p=i;for(let k=i+1;k<3;k++)if(Math.abs(M[k][i])>Math.abs(M[p][i]))p=k;[M[i],M[p]]=[M[p],M[i]];for(let k=i+1;k<3;k++){const f=M[k][i]/M[i][i];for(let j=i;j<4;j++)M[k][j]-=f*M[i][j]}}const x=[0,0,0];for(let i=2;i>=0;i--){let s=M[i][3];for(let j=i+1;j<3;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i]}return x}
+
+// ---------- Zeichnen ----------
+const hh=h=>{const H=Math.floor(h),M=Math.round((h-H)*60);return String(H).padStart(2,'0')+':'+String(M%60).padStart(2,'0')};
+function ctx(id){const c=document.getElementById(id),g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);g.font='22px IBM Plex Sans, sans-serif';return[g,c.width,c.height]}
+function drawAkt(sim,y){
+ const[g,W,H]=ctx('akt');const L=60,R=10,T=6,B=34,pd=1440/P.bin,D=sim.D,rh=(H-T-B)/D,bw=(W-L-R)/(2*pd);
+ let mx=0;for(const v of y)if(v>mx)mx=v;
+ for(let d=0;d<D;d++){
+  const y0=T+d*rh;g.fillStyle=C.mut;g.textAlign='right';g.font='18px IBM Plex Sans, sans-serif';g.fillText(d+1,L-12,y0+rh*.75);
+  for(let half=0;half<2;half++){const dd=d+half;if(dd>=D)continue;
+   for(let k=0;k<pd;k++){const v=y[dd*pd+k],x0=L+(half*pd+k)*bw;
+    if(isNaN(v)){g.fillStyle=C.orange;g.globalAlpha=.3;g.fillRect(x0,y0,bw+.5,rh);g.globalAlpha=1;continue}
+    const h=Math.min(1,v/mx)*(rh-3);if(h>.5){g.fillStyle=C.ink;g.fillRect(x0,y0+rh-h,Math.max(bw-.2,.6),h)}}}
+  g.fillStyle=C.line;g.fillRect(L,y0+rh-1,W-L-R,1);
+ }
+ g.fillStyle=C.mut;g.textAlign='center';g.font='20px IBM Plex Sans, sans-serif';
+ for(let h=0;h<=48;h+=6)g.fillText(h%24+' h',L+h/48*(W-L-R),H-8);
+}
+function drawProf(f){
+ const[g,W,H]=ctx('prof');const L=20,R=20,T=14,B=36,pd=f.pd,bw=(W-L-R)/pd,bs=P.bin;
+ let mx=0;f.prof.forEach(v=>{if(v>mx)mx=v});mx=Math.max(mx,f.mesor+f.amp)*1.08;
+ const sx=h=>L+h/24*(W-L-R),sy=v=>H-B-v/mx*(H-T-B);
+ const shade=(o,len,c)=>{g.fillStyle=c;g.globalAlpha=.22;const a=o,b=o+len;if(b<=24)g.fillRect(sx(a),T,sx(b)-sx(a),H-T-B);else{g.fillRect(sx(a),T,sx(24)-sx(a),H-T-B);g.fillRect(sx(0),T,sx(b-24)-sx(0),H-T-B)}g.globalAlpha=1};
+ shade(f.M10o,10,C.orange);shade(f.L5o,5,C.blue);
+ g.fillStyle=C.mut;g.globalAlpha=.55;f.prof.forEach((v,k)=>{if(!isNaN(v))g.fillRect(L+k*bw,sy(v),Math.max(bw-.6,.8),H-B-sy(v))});g.globalAlpha=1;
+ g.setLineDash([8,6]);g.strokeStyle=C.mut;g.lineWidth=2;g.beginPath();g.moveTo(L,sy(f.mesor));g.lineTo(W-R,sy(f.mesor));g.stroke();g.setLineDash([]);
+ g.strokeStyle=C.ink;g.lineWidth=3.5;g.beginPath();
+ for(let t=0;t<=24.001;t+=.1){const v=f.mesor+f.amp*Math.cos(2*Math.PI*(t-f.ak)/24);const yy=sy(Math.max(0,v));t?g.lineTo(sx(t),yy):g.moveTo(sx(t),yy)}g.stroke();
+ g.fillStyle=C.ink;g.beginPath();const ax=sx(f.ak),ay=sy(f.mesor+f.amp)-12;g.moveTo(ax,ay+12);g.lineTo(ax-9,ay-4);g.lineTo(ax+9,ay-4);g.fill();
+ g.fillStyle=C.orange;g.beginPath();const mxp=sx(f.M10o),myp=H-B+2;g.moveTo(mxp,myp-9);g.lineTo(mxp+8,myp);g.lineTo(mxp,myp+9);g.lineTo(mxp-8,myp);g.fill();
+ g.fillStyle=C.mut;g.textAlign='center';g.font='20px IBM Plex Sans, sans-serif';for(let h=0;h<=24;h+=3)g.fillText(h+' h',sx(h),H-6);
+}
+const trail=[];
+function drawSc(f,add){
+ if(add&&isFinite(f.IS)&&isFinite(f.IV)){trail.push([f.IS,f.IV]);if(trail.length>60)trail.shift()}
+ const[g,W,H]=ctx('sc');const L=70,R=20,T=20,B=64;
+ const sx=v=>L+v*(W-L-R),sy=v=>H-B-v/2.2*(H-T-B);
+ g.strokeStyle=C.line;g.lineWidth=1;
+ for(let v=0;v<=1.001;v+=.2){g.beginPath();g.moveTo(sx(v),T);g.lineTo(sx(v),H-B);g.stroke()}
+ for(let v=0;v<=2.2;v+=.5){g.beginPath();g.moveTo(L,sy(v));g.lineTo(W-R,sy(v));g.stroke()}
+ g.fillStyle=C.mut;g.font='20px IBM Plex Sans, sans-serif';g.textAlign='center';
+ for(let v=0;v<=1.001;v+=.2)g.fillText(v.toFixed(1).replace('.',','),sx(v),H-B+28);
+ g.fillText('Interdaily Stability (IS)',(L+W-R)/2,H-10);
+ g.textAlign='right';for(let v=0;v<=2.2;v+=.5)g.fillText(v.toFixed(1).replace('.',','),L-10,sy(v)+7);
+ g.save();g.translate(22,(T+H-B)/2);g.rotate(-Math.PI/2);g.textAlign='center';g.fillText('Intradaily Variability (IV)',0,0);g.restore();
+ if(trail.length>1){g.strokeStyle=C.blue;g.globalAlpha=.4;g.lineWidth=2;g.beginPath();trail.forEach((p,i)=>i?g.lineTo(sx(p[0]),sy(p[1])):g.moveTo(sx(p[0]),sy(p[1])));g.stroke();g.globalAlpha=1}
+ trail.forEach((p,i)=>{g.fillStyle=C.blue;g.globalAlpha=.15+.5*i/trail.length;g.beginPath();g.arc(sx(p[0]),sy(p[1]),5,0,7);g.fill()});g.globalAlpha=1;
+ g.fillStyle=C.orange;g.beginPath();g.arc(sx(Math.min(1,f.IS)),sy(Math.min(2.2,f.IV)),11,0,7);g.fill();
+ g.strokeStyle=C.card;g.lineWidth=3;g.stroke();
+}
+const fx=(v,d=2)=>isFinite(v)?v.toFixed(d).replace('.',','):'–';
+let last=null;
+function update(add){
+ syncUI();const sim=simulate(),y=binning(sim),f=features(y);last={sim,y,f};
+ kIS.textContent=fx(f.IS);kIV.textContent=fx(f.IV);kRA.textContent=fx(f.RA);kR2.textContent=fx(f.R2);
+ kM10o.textContent=hh(f.M10o);kL5o.textContent=hh(f.L5o);kAk.textContent=hh(f.ak);kAmp.textContent=fx(f.amp/(P.bin/60),0)+'/h';
+ drawAkt(sim,y);drawProf(f);drawSc(f,add);
+}
+const [kIS,kIV,kRA,kR2,kM10o,kL5o,kAk,kAmp]=['kIS','kIV','kRA','kR2','kM10o','kL5o','kAk','kAmp'].map(i=>document.getElementById(i));
+document.getElementById('clear').addEventListener('click',()=>{trail.length=0;drawSc(last.f,true)});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{col();if(last){drawAkt(last.sim,last.y);drawProf(last.f);drawSc(last.f,false)}});
+Object.assign(P,PRE[0].v);setPreset('std');update(true);
+document.fonts&&document.fonts.ready.then(()=>{if(last){drawAkt(last.sim,last.y);drawProf(last.f);drawSc(last.f,false)}});
+})();
+</script>
+</body>
+</html>

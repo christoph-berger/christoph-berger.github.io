@@ -4,6 +4,7 @@ Begleitseite zum Workshop „Zirkadiane Rhythmen analysieren mit R“.
 
 - `index.html` – Übersicht, Material, Originalarbeiten
 - `periodogramme.html` – interaktive Erklärung χ²-Periodogramm (Falten) und Lomb-Scargle (Datenlücken)
+- `feature-labor.html` – interaktive Kennwerte (IS, IV, RA, M10/L5, Cosinor) mit Reglern und Sonderfällen
 - `style.css` – gemeinsames Stylesheet
 - `slides.pdf` – hier das aus dem Folien-Deck exportierte PDF ablegen
 

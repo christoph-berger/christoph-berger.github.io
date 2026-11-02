@@ -58,7 +58,14 @@ Qₚ = ─────────────────────   ~ χ²(
 <div class="stat"><span>Gipfel Lomb-Scargle</span><b id="lsP">–</b></div>
 <div class="stat"><span>Gipfel χ² (aufgefüllt)</span><b id="chP">–</b></div>
 </div>
-<p>Bei diesem gut ausgeprägten Rhythmus finden beide Verfahren den Gipfel auch mit vielen Lücken. Der Unterschied liegt woanders: Das Auffüllen erfindet Messwerte und verflacht das Profil, und bei ungleichmäßig abgetasteten Daten – etwa einzelnen Blutproben oder Körpertemperatur zu unregelmäßigen Zeitpunkten – lässt sich das χ²-Periodogramm gar nicht erst anwenden. Lomb-Scargle arbeitet in beiden Fällen nur mit den tatsächlich gemessenen Punkten.</p>
+<p>Bei diesem deutlichen Rhythmus und feiner Auflösung finden beide Verfahren denselben Gipfel – auch mit vielen Lücken. Wer nur τ ablesen will, gewinnt mit Lomb-Scargle hier wenig. Der Vorteil zeigt sich in vier Situationen:</p>
+<ul>
+<li><b>Grobe Zeitauflösung.</b> Beim χ²-Periodogramm muss P eine ganze Zahl von Messpunkten sein. Mit stündlichen Bins lassen sich nur 23, 24 oder 25 h testen – eine Periode von 23,6 h ist so gar nicht schätzbar. Lomb-Scargle wertet jede beliebige Periode aus.</li>
+<li><b>Rhythmus ja oder nein?</b> Aufgefüllte Werte zählen im Test wie echte Messungen und verflachen zugleich das Profil. Bei schwachen Rhythmen werden die p-Werte dadurch unzuverlässig.</li>
+<li><b>Große, systematische Lücken.</b> Fehlen ganze Tage oder immer dieselbe Tageszeit, kann das Auffüllen ein künstliches Muster erzeugen und den Gipfel verschieben.</li>
+<li><b>Ungleichmäßige Messzeitpunkte</b> wie Blutproben oder Genexpression zu wenigen Zeitpunkten: Hier ist χ² gar nicht anwendbar.</li>
+</ul>
+<p>Umgekehrt erfasst χ² auch rechteckige Profile gut, weil es mit dem gefalteten Profil beliebiger Form arbeitet. Lomb-Scargle passt eine Sinuskurve an und verteilt bei Laufradprofilen einen Teil der Power auf Harmonische (12 h, 8 h). Faustregel: lückenlose, fein aufgelöste Laufraddaten → χ²; Lücken, grobe Bins oder unregelmäßige Zeitpunkte → Lomb-Scargle; im Zweifel beide als Robustheitscheck.</p>
 
 <h2>In R</h2>
 <div class="formula"># χ²-Periodogramm „von Hand“
