@@ -21,10 +21,22 @@ main.wide{max-width:1240px}
 .sl select{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
 .presets{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 2px}
 .presets button[aria-pressed=true]{border-color:var(--blue);background:color-mix(in srgb,var(--blue) 14%,var(--card))}
-.kw{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.kw{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 @media (max-width:560px){.kw{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.kw div{background:var(--bg);border-radius:10px;padding:8px 10px}
+.kw button{all:unset;box-sizing:border-box;cursor:pointer;background:var(--bg);border-radius:10px;padding:8px 10px;border:2px solid transparent}
+.kw button:hover{border-color:var(--line)}
+.kw button[aria-pressed=true]{border-color:var(--blue)}
+.kw button:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+.det{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.det h3{margin:0 0 6px}
+.det .f{font-family:'IBM Plex Mono',monospace;font-size:13.5px;white-space:pre;overflow-x:auto;background:var(--bg);border-radius:8px;padding:8px 10px;margin:6px 0}
+.det .live{border-left:3px solid var(--orange)}
+.det p{font-size:15px;margin:6px 0}
+.det .lab{font-size:12.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-top:10px}
+.circ{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:640px){.circ{grid-template-columns:1fr}}
 .kw span{display:block;font-size:12.5px;color:var(--mut)}
+.kw b{display:block}
 .kw b{font-family:'IBM Plex Mono',monospace;font-size:19px}
 .note{border-left:4px solid var(--orange);padding:10px 14px;background:var(--card);border-radius:0 10px 10px 0;margin:14px 0 0}
 .note h3{margin:0 0 4px}
@@ -64,21 +76,30 @@ main.wide{max-width:1240px}
 <span><i style="background:var(--ink)"></i>Cosinor</span>
 <span>│ gestrichelt: MESOR · ▲ Akrophase · ◆ M10-Onset</span>
 </div>
+<div class="circ">
+<div><p class="cap">Polarplot – dasselbe Profil um die Uhr gewickelt</p>
+<canvas id="pol" width="560" height="560" role="img" aria-label="Polarplot des mittleren Tagesprofils mit Cosinor-Kurve"></canvas></div>
+<div><p class="cap">Roseplot – Akrophase jedes einzelnen Tages, Pfeil: mittlerer Vektor R̄</p>
+<canvas id="rose" width="560" height="560" role="img" aria-label="Roseplot der täglichen Akrophasen mit mittlerem Richtungsvektor"></canvas></div>
+</div>
 </div>
 
 <div class="side">
 <div class="panel">
 <h3 style="margin-top:0">Kennwerte</h3>
-<div class="kw">
-<div><span>IS</span><b id="kIS">–</b></div>
-<div><span>IV</span><b id="kIV">–</b></div>
-<div><span>RA</span><b id="kRA">–</b></div>
-<div><span>R² Cosinor</span><b id="kR2">–</b></div>
-<div><span>M10-Onset</span><b id="kM10o">–</b></div>
-<div><span>L5-Onset</span><b id="kL5o">–</b></div>
-<div><span>Akrophase</span><b id="kAk">–</b></div>
-<div><span>Amplitude</span><b id="kAmp">–</b></div>
+<p class="cap" style="margin-top:0">Auf einen Kennwert klicken für Formel und Interpretation</p>
+<div class="kw" id="kw">
+<button data-f="IS" aria-pressed="true"><span>IS</span><b id="kIS">–</b></button>
+<button data-f="IV" aria-pressed="false"><span>IV</span><b id="kIV">–</b></button>
+<button data-f="RA" aria-pressed="false"><span>RA</span><b id="kRA">–</b></button>
+<button data-f="M10o" aria-pressed="false"><span>M10-Onset</span><b id="kM10o">–</b></button>
+<button data-f="L5o" aria-pressed="false"><span>L5-Onset</span><b id="kL5o">–</b></button>
+<button data-f="Ak" aria-pressed="false"><span>Akrophase</span><b id="kAk">–</b></button>
+<button data-f="Amp" aria-pressed="false"><span>Amplitude</span><b id="kAmp">–</b></button>
+<button data-f="R2" aria-pressed="false"><span>R² Cosinor</span><b id="kR2">–</b></button>
+<button data-f="Rb" aria-pressed="false"><span>R̄ Tagesphasen</span><b id="kRb">–</b></button>
 </div>
+<div class="det" id="det" aria-live="polite"></div>
 <p class="cap" style="margin-top:14px">IS gegen IV – der Punkt folgt den Reglern, die Spur zeigt den Weg</p>
 <canvas id="sc" width="660" height="560" role="img" aria-label="Scatterplot Interdaily Stability gegen Intradaily Variability mit Spur der letzten Einstellungen"></canvas>
 <div class="ctrl" style="margin:8px 0 0"><button id="clear">Spur löschen</button></div>
@@ -93,6 +114,7 @@ main.wide{max-width:1240px}
 <li><b>Fragmentierung</b> – kurze Ruhepausen am Tag und Aktivitätsspitzen in der Nacht.</li>
 <li><b>Profilform</b> – stufenlos von Sinuskurve (0) bis Rechteck (1).</li>
 <li><b>Auflösung</b> – Länge der Bins, in denen die 1-Minuten-Epochen aufsummiert werden. Klassisch: 60 min.</li>
+<li><b>Polar- und Roseplot</b> – der Polarplot zeigt das mittlere Profil um die Uhr gewickelt; der Roseplot die Akrophase jedes einzelnen Tages. Je stärker der Phasen-Jitter, desto breiter die Rose und desto kürzer der Pfeil R̄.</li>
 <li><b>Fehlende Daten</b> – zufällig entfernte 3-Stunden-Blöcke. Ein Bin zählt nur, wenn alle Epochen vorhanden sind.</li>
 </ul>
 <footer>Simulierte Daten · Formeln: Witting et al. (1990), Van Someren et al. (1999), Cosinor als lineares Modell · <a href="./">Workshop-Seite</a></footer>
@@ -220,9 +242,24 @@ function features(y){
  const beta=solve3(A,r);const amp=Math.hypot(beta[1],beta[2]);
  const ak=((-Math.atan2(-beta[2],beta[1])*24/(2*Math.PI))%24+24)%24;
  let ssr=0;for(let i=0;i<n0;i++){if(isNaN(y[i]))continue;const t=((i%pd)+.5)*bs/60;const f=beta[0]+beta[1]*Math.cos(2*Math.PI*t/24)+beta[2]*Math.sin(2*Math.PI*t/24);ssr+=(y[i]-f)**2}
- return{IS,IV,RA,M10o:iM*bs/60,L5o:iL*bs/60,ak,amp,mesor:beta[0],R2:1-ssr/sst,prof,pd};
+ return{IS,IV,RA,M10o:iM*bs/60,L5o:iL*bs/60,ak,amp,mesor:beta[0],R2:1-ssr/sst,prof,pd,
+        n,p,ssb,sst,sd,ssr,beta,M10:m10[iM]*60/bs,L5:l5[iL]*60/bs};
 }
 function solve3(A,b){const M=A.map((r,i)=>[...r,b[i]]);for(let i=0;i<3;i++){let p=i;for(let k=i+1;k<3;k++)if(Math.abs(M[k][i])>Math.abs(M[p][i]))p=k;[M[i],M[p]]=[M[p],M[i]];for(let k=i+1;k<3;k++){const f=M[k][i]/M[i][i];for(let j=i;j<4;j++)M[k][j]-=f*M[i][j]}}const x=[0,0,0];for(let i=2;i>=0;i--){let s=M[i][3];for(let j=i+1;j<3;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i]}return x}
+
+// ---------- Tagesphasen (Cosinor je Tag) + zirkuläre Statistik ----------
+function dayPhases(y){
+ const bs=P.bin,pd=1440/bs,D=y.length/pd,out=[];
+ for(let d=0;d<D;d++){
+  let A=[[0,0,0],[0,0,0],[0,0,0]],r=[0,0,0],k=0;
+  for(let j=0;j<pd;j++){const v=y[d*pd+j];if(isNaN(v))continue;k++;const t=(j+.5)*bs/60,c=Math.cos(2*Math.PI*t/24),s=Math.sin(2*Math.PI*t/24),w=[1,c,s];
+   for(let a=0;a<3;a++){r[a]+=w[a]*v;for(let b=0;b<3;b++)A[a][b]+=w[a]*w[b]}}
+  if(k<pd/2)continue;                                     // Tag mit zu vielen Lücken auslassen
+  const b=solve3(A,r);out.push(((-Math.atan2(-b[2],b[1])*24/(2*Math.PI))%24+24)%24);
+ }
+ let C=0,S=0;out.forEach(h=>{C+=Math.cos(2*Math.PI*h/24);S+=Math.sin(2*Math.PI*h/24)});C/=out.length;S/=out.length;
+ return{ph:out,R:Math.hypot(C,S),mean:((Math.atan2(S,C)*24/(2*Math.PI))%24+24)%24,C,S};
+}
 
 // ---------- Zeichnen ----------
 const hh=h=>{const H=Math.floor(h),M=Math.round((h-H)*60);return String(H).padStart(2,'0')+':'+String(M%60).padStart(2,'0')};
@@ -255,6 +292,98 @@ function drawProf(f){
  g.fillStyle=C.orange;g.beginPath();const mxp=sx(f.M10o),myp=H-B+2;g.moveTo(mxp,myp-9);g.lineTo(mxp+8,myp);g.lineTo(mxp,myp+9);g.lineTo(mxp-8,myp);g.fill();
  g.fillStyle=C.mut;g.textAlign='center';g.font='20px IBM Plex Sans, sans-serif';for(let h=0;h<=24;h+=3)g.fillText(h+' h',sx(h),H-6);
 }
+function polarFrame(g,W,H,R0){
+ const cx=W/2,cy=H/2;
+ g.strokeStyle=C.line;g.lineWidth=1.5;for(const r of[.33,.66,1]){g.beginPath();g.arc(cx,cy,R0*r,0,7);g.stroke()}
+ g.fillStyle=C.mut;g.font='20px IBM Plex Sans, sans-serif';g.textAlign='center';
+ for(let h=0;h<24;h+=6){const a=h/24*2*Math.PI-Math.PI/2;g.beginPath();g.moveTo(cx,cy);g.lineTo(cx+R0*Math.cos(a),cy+R0*Math.sin(a));g.stroke();
+  g.fillText(h+' h',cx+(R0+28)*Math.cos(a),cy+(R0+28)*Math.sin(a)+7)}
+ return[cx,cy];
+}
+const ang=h=>h/24*2*Math.PI-Math.PI/2;
+function drawPol(f){
+ const[g,W,H]=ctx('pol');const R0=W/2-50;const[cx,cy]=polarFrame(g,W,H,R0);
+ let mx=0;f.prof.forEach(v=>{if(v>mx)mx=v});mx=Math.max(mx,f.mesor+f.amp)*1.05;const pd=f.pd,bs=P.bin;
+ const sector=(a0,a1,col)=>{g.fillStyle=col;g.globalAlpha=.2;g.beginPath();g.moveTo(cx,cy);g.arc(cx,cy,R0,ang(a0),ang(a1));g.closePath();g.fill();g.globalAlpha=1};
+ sector(f.M10o,f.M10o+10,C.orange);sector(f.L5o,f.L5o+5,C.blue);
+ g.fillStyle=C.mut;g.globalAlpha=.55;
+ f.prof.forEach((v,k)=>{if(isNaN(v))return;const r=v/mx*R0,a0=ang(k*bs/60),a1=ang((k+1)*bs/60);g.beginPath();g.moveTo(cx,cy);g.arc(cx,cy,r,a0,a1);g.closePath();g.fill()});g.globalAlpha=1;
+ g.strokeStyle=C.ink;g.lineWidth=3.5;g.beginPath();
+ for(let t=0;t<=24.001;t+=.1){const v=Math.max(0,f.mesor+f.amp*Math.cos(2*Math.PI*(t-f.ak)/24)),r=v/mx*R0;const X=cx+r*Math.cos(ang(t)),Y=cy+r*Math.sin(ang(t));t?g.lineTo(X,Y):g.moveTo(X,Y)}g.stroke();
+ g.setLineDash([7,6]);g.strokeStyle=C.mut;g.lineWidth=2;g.beginPath();g.arc(cx,cy,f.mesor/mx*R0,0,7);g.stroke();g.setLineDash([]);
+}
+function drawRose(dp){
+ const[g,W,H]=ctx('rose');const R0=W/2-50;const[cx,cy]=polarFrame(g,W,H,R0);
+ const cnt=new Array(24).fill(0);dp.ph.forEach(h=>cnt[Math.floor(h)%24]++);const mx=Math.max(1,...cnt);
+ cnt.forEach((c,h)=>{if(!c)return;const r=Math.sqrt(c/mx)*R0;g.fillStyle=C.orange;g.globalAlpha=.8;g.beginPath();g.moveTo(cx,cy);g.arc(cx,cy,r,ang(h),ang(h+1));g.closePath();g.fill();
+  g.globalAlpha=1;g.strokeStyle=C.card;g.lineWidth=2;g.stroke()});
+ const ex=cx+dp.R*R0*Math.cos(ang(dp.mean)),ey=cy+dp.R*R0*Math.sin(ang(dp.mean));
+ g.strokeStyle=C.ink;g.lineWidth=5;g.beginPath();g.moveTo(cx,cy);g.lineTo(ex,ey);g.stroke();g.fillStyle=C.ink;g.beginPath();g.arc(ex,ey,9,0,7);g.fill();
+ g.fillStyle=C.mut;g.textAlign='left';g.font='19px IBM Plex Sans, sans-serif';g.fillText(dp.ph.length+' Tage',12,26);
+}
+
+// ---------- Details zum gewählten Kennwert ----------
+const sup=n=>String(n).replace(/./g,c=>'⁰¹²³⁴⁵⁶⁷⁸⁹⁻'['0123456789-'.indexOf(c)]);
+const big=x=>{if(!isFinite(x))return'–';const e=Math.floor(Math.log10(Math.abs(x)||1));return Math.abs(e)<5?Math.round(x).toLocaleString('de-DE'):(x/10**e).toFixed(2).replace('.',',')+'·10'+sup(e)};
+const dn=(x,d=2)=>isFinite(x)?x.toFixed(d).replace('.',',').replace('-','−'):'–';
+const pa=(x,d=1)=>x<0?'('+dn(x,d)+')':dn(x,d);
+let sel='IS',lastDp=null;
+const DET={
+ IS:{t:'Interdaily Stability (IS)',f:'      n · Σₕ (x̄ₕ − x̄)²\nIS = ─────────────────\n      p · Σᵢ (xᵢ − x̄)²',
+  live:f=>`IS = ${f.n} · ${big(f.ssb)} / (${f.p} · ${big(f.sst)}) = ${dn(f.IS)}`,
+  i:'Anteil der Gesamtvarianz, den das wiederkehrende Tagesprofil erklärt (wie η² einer ANOVA mit der Tageszeit als Faktor). 0 = kein wiederkehrendes Muster, 1 = alle Tage identisch.',
+  w:'Niedriger IS heißt entweder „instabil“ oder „kein Rhythmus“ – erst die RA trennt beides. Bei ungleich verteilten Lücken kann IS über 1 steigen.',
+  q:'Witting et al. (1990), Biol Psychiatry 27, 563–572 · Folie „Interdaily Stability“'},
+ IV:{t:'Intradaily Variability (IV)',f:'      n · Σᵢ₌₂ (xᵢ − xᵢ₋₁)²\nIV = ──────────────────────\n     (n − 1) · Σᵢ (xᵢ − x̄)²',
+  live:f=>`IV = ${f.n} · ${big(f.sd)} / (${f.n-1} · ${big(f.sst)}) = ${dn(f.IV)}`,
+  i:'Mittlere quadrierte Änderung von einem Bin zum nächsten, relativ zur Gesamtvarianz. ≈ 0 bei glattem Verlauf, ≈ 2 bei reinem Rauschen, > 2 bei systematischem Hin-und-her-Springen.',
+  w:'Stark abhängig von der Auflösung: mit 1-min-Bins viel höher als mit 60-min-Bins. Auflösung immer berichten; Differenzen nur zwischen gültigen Nachbarn.',
+  q:'Witting et al. (1990) · Gonçalves et al. (2014), Sleep Sci 7, 158–164 · Folie „Intradaily Variability“'},
+ RA:{t:'Relative Amplitude (RA)',f:'RA = (M10 − L5) / (M10 + L5)',
+  live:f=>`RA = (${big(f.M10)} − ${big(f.L5)}) / (${big(f.M10)} + ${big(f.L5)}) = ${dn(f.RA)}`,
+  i:'Skalenfreie Rhythmusstärke aus aktivsten 10 und ruhigsten 5 Stunden. Unabhängig vom Gesamtniveau – vergleichbar zwischen Geräten und Personen.',
+  w:'Deckeneffekt, wenn L5 nahe 0 liegt (häufig bei Laufraddaten). Sagt nichts über die Lage im Tag.',
+  q:'Van Someren et al. (1999), Chronobiol Int 16, 505–518 · Folie „Relative Amplitude“'},
+ M10o:{t:'M10 und M10-Onset',f:'M10 = maxₛ mittel(x̄ₕ), h ∈ [s, s+10 h)\nM10-Onset = argmaxₛ',
+  live:f=>`M10 = ${big(f.M10)} pro Stunde, Beginn ${hh(f.M10o)} Uhr`,
+  i:'Mittlere Aktivität der aktivsten 10 zusammenhängenden Stunden im mittleren Tagesprofil; der Onset ist ein nichtparametrisches Phasenmaß.',
+  w:'Bei breitem Plateau ist der Onset schlecht bestimmt – viele Fenster sind fast gleich aktiv („Rechteckprofil“ ausprobieren). Manche Arbeiten berichten die Fenstermitte statt des Beginns.',
+  q:'Van Someren et al. (1999) · Folie „M10 und L5 mit Onsets“'},
+ L5o:{t:'L5 und L5-Onset',f:'L5 = minₛ mittel(x̄ₕ), h ∈ [s, s+5 h)\nL5-Onset = argminₛ',
+  live:f=>`L5 = ${big(f.L5)} pro Stunde, Beginn ${hh(f.L5o)} Uhr`,
+  i:'Mittlere Aktivität der ruhigsten 5 zusammenhängenden Stunden – beim Menschen meist mitten in der Nacht, bei Mäusen in der Hellphase.',
+  w:'Unruhiger Schlaf oder nächtliche Aktivität erhöhen L5 und senken damit die RA.',
+  q:'Van Someren et al. (1999) · Folie „M10 und L5 mit Onsets“'},
+ Ak:{t:'Akrophase (Cosinor)',f:'y = M + β·cos(2πt/24) + γ·sin(2πt/24)\nφ = atan2(−γ, β)\nAkrophase = (−φ · 24 / 2π) mod 24',
+  live:f=>`β = ${dn(f.beta[1],1)}, γ = ${dn(f.beta[2],1)}  →  Akrophase = ${hh(f.ak)} Uhr`,
+  i:'Zeitpunkt des Gipfels der angepassten Sinuskurve.',
+  w:'Nur sinnvoll, wenn die Kurve passt (R² prüfen). Bei Plateau oder zwei Gipfeln liegt die Akrophase „dazwischen“. Phasen zirkulär mitteln – 23 und 1 Uhr ergeben 0 Uhr, nicht 12 Uhr.',
+  q:'Nelson et al. (1979), Chronobiologia 6, 305–323 · Cornélissen (2014), Theor Biol Med Model 11, 16 · Folie „Cosinor“'},
+ Amp:{t:'Amplitude und MESOR (Cosinor)',f:'A = √(β² + γ²)\nMESOR = M',
+  live:f=>`A = √(${pa(f.beta[1])}² + ${pa(f.beta[2])}²) = ${dn(f.amp,1)} pro Bin  ·  MESOR = ${dn(f.mesor,1)} pro Bin`,
+  i:'Amplitude = halbe Schwankungsbreite der Sinuskurve, MESOR = rhythmusbereinigter Mittelwert. Hier pro Bin; die Kachel rechnet auf pro Stunde um.',
+  w:'Hängt vom Aktivitätsniveau ab – für Vergleiche zwischen Geräten lieber RA oder die relative Amplitude A/MESOR.',
+  q:'Nelson et al. (1979) · Folie „Cosinor“'},
+ R2:{t:'R² des Cosinors',f:'R² = 1 − Σ (yᵢ − ŷᵢ)² / Σ (yᵢ − ȳ)²',
+  live:f=>`R² = 1 − ${big(f.ssr)} / ${big(f.sst)} = ${dn(f.R2)}`,
+  i:'Anteil der Varianz, den die 24-h-Sinuskurve erklärt („percent rhythm“).',
+  w:'Niedrig auch bei sehr klarem, aber nicht sinusförmigem Rhythmus (Rechteckprofil) – dann besser IS/RA heranziehen. Sinkt mit feinerer Auflösung.',
+  q:'Cornélissen (2014) · Folie „Cosinor“'},
+ Rb:{t:'Mittlerer Vektor R̄ der Tagesphasen',f:'θₖ = 2π · Akrophaseₖ / 24   (Tag k)\nR̄ = | 1/K · Σₖ (cos θₖ, sin θₖ) |',
+  live:(f,d)=>`K = ${d.ph.length} Tage  ·  C̄ = ${dn(d.C)}, S̄ = ${dn(d.S)}  →  R̄ = ${dn(d.R)}, mittlere Phase ${hh(d.mean)} Uhr`,
+  i:'Wie eng liegen die Tagesphasen beieinander? R̄ = 1: jeden Tag dieselbe Akrophase; R̄ nahe 0: Phasen über den ganzen Tag verstreut. Der Pfeil im Roseplot hat genau diese Länge.',
+  w:'Mehr Phasen-Jitter fächert die Rose auf, R̄ und IS sinken gemeinsam. Bei wenigen Tagen ist R̄ auch ohne Rhythmus nicht 0 – rein zufällig liegt es um 1/√K. Deshalb testen: Rayleigh-Test (R-Paket circular).',
+  q:'Batschelet (1981), Circular Statistics in Biology · Folie „Roseplot“'}
+};
+function renderDet(f,d){
+ const x=DET[sel];if(!x)return;const el=document.getElementById('det');
+ el.innerHTML=`<h3>${x.t}</h3><div class="lab">Formel</div><div class="f">${x.f.replace(/\n/g,'\n')}</div>
+<div class="lab">Mit den aktuellen Werten</div><div class="f live">${x.live(f,d)}</div>
+<div class="lab">Interpretation</div><p>${x.i}</p><div class="lab">Achtung</div><p>${x.w}</p><div class="lab">Quelle</div><p>${x.q}</p>`;
+}
+document.querySelectorAll('#kw button').forEach(b=>b.addEventListener('click',()=>{sel=b.dataset.f;
+ document.querySelectorAll('#kw button').forEach(o=>o.setAttribute('aria-pressed',o===b?'true':'false'));if(last)renderDet(last.f,lastDp)}));
+
 const trail=[];
 function drawSc(f,add){
  if(add&&isFinite(f.IS)&&isFinite(f.IV)){trail.push([f.IS,f.IV]);if(trail.length>60)trail.shift()}
@@ -279,13 +408,15 @@ function update(add){
  syncUI();const sim=simulate(),y=binning(sim),f=features(y);last={sim,y,f};
  kIS.textContent=fx(f.IS);kIV.textContent=fx(f.IV);kRA.textContent=fx(f.RA);kR2.textContent=fx(f.R2);
  kM10o.textContent=hh(f.M10o);kL5o.textContent=hh(f.L5o);kAk.textContent=hh(f.ak);kAmp.textContent=fx(f.amp/(P.bin/60),0)+'/h';
- drawAkt(sim,y);drawProf(f);drawSc(f,add);
+ const dp=dayPhases(y);lastDp=dp;kRb.textContent=dn(dp.R);
+ drawAkt(sim,y);drawProf(f);drawPol(f);drawRose(dp);drawSc(f,add);renderDet(f,dp);
 }
-const [kIS,kIV,kRA,kR2,kM10o,kL5o,kAk,kAmp]=['kIS','kIV','kRA','kR2','kM10o','kL5o','kAk','kAmp'].map(i=>document.getElementById(i));
+const [kIS,kIV,kRA,kR2,kM10o,kL5o,kAk,kAmp,kRb]=['kIS','kIV','kRA','kR2','kM10o','kL5o','kAk','kAmp','kRb'].map(i=>document.getElementById(i));
 document.getElementById('clear').addEventListener('click',()=>{trail.length=0;drawSc(last.f,true)});
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{col();if(last){drawAkt(last.sim,last.y);drawProf(last.f);drawSc(last.f,false)}});
+const redraw=()=>{if(last){drawAkt(last.sim,last.y);drawProf(last.f);drawPol(last.f);drawRose(lastDp);drawSc(last.f,false)}};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{col();redraw()});
 Object.assign(P,PRE[0].v);setPreset('std');update(true);
-document.fonts&&document.fonts.ready.then(()=>{if(last){drawAkt(last.sim,last.y);drawProf(last.f);drawSc(last.f,false)}});
+document.fonts&&document.fonts.ready.then(redraw);
 })();
 </script>
 </body>
