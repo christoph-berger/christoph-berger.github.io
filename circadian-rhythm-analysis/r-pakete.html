@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>R-Pakete – Zirkadiane Analysen in R</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕐</text></svg>">
+<style>
+pre.code{font-family:'IBM Plex Mono',Menlo,Consolas,monospace;font-size:14.5px;line-height:1.5;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;white-space:pre}
+.tw{overflow-x:auto}
+table.t{border-collapse:collapse;font-size:15px;margin:10px 0}
+table.t th,table.t td{padding:6px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.t th{border-bottom:2px solid var(--ink)}
+table.t td.n{text-align:right;font-family:'IBM Plex Mono',monospace}
+figure{margin:16px 0}
+figure img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+figcaption{font-size:14px;color:var(--mut);margin-top:6px}
+.toc{columns:2;column-gap:32px}
+@media (max-width:640px){.toc{columns:1}}
+.hint{border-left:4px solid var(--orange);padding:10px 14px;background:var(--card);border-radius:0 10px 10px 0;margin:14px 0}
+</style>
+</head>
+<body>
+<main>
+<p><a href="./">Zurück zur Workshop-Seite</a></p>
+<h1>R-Pakete für zirkadiane Analysen</h1>
+<p class="lead">Welches Paket für welche Aufgabe – und worauf man achten sollte.</p>
+<h2>Installation für den Workshop</h2>
+<pre class="code"><code>pakete &lt;- c(&quot;dplyr&quot;, &quot;tidyr&quot;, &quot;ggplot2&quot;, &quot;lubridate&quot;, &quot;patchwork&quot;,
+            &quot;readxl&quot;, &quot;lme4&quot;, &quot;lmerTest&quot;, &quot;emmeans&quot;, &quot;circular&quot;)
+install.packages(setdiff(pakete, rownames(installed.packages())))</code></pre>
+<p>Das ist der Inhalt von <code>00_setup.R</code> im Projektordner. Alle Pakete kommen von CRAN; für die Workshop-Skripte wird nichts von GitHub benötigt.</p>
+<h2>Übersicht nach Aufgabe</h2>
+<h3>Import &amp; Aufbereitung</h3>
+<div class="tw"><table class="t"><tr><th>Paket</th><th>Wofür</th></tr><tr><td><code>readxl</code></td><td>Excel-Dateien einlesen (Laufraddaten).</td></tr><tr><td><code>lubridate</code></td><td>Zeitstempel parsen, auf Stunden runden, Zeitzonen.</td></tr><tr><td><code>dplyr, tidyr</code></td><td>Gruppieren, Zusammenfassen, Long-/Wide-Format.</td></tr></table></div>
+<h3>Cosinor, einzeln</h3>
+<div class="tw"><table class="t"><tr><th>Paket</th><th>Wofür</th></tr><tr><td><code>cosinor, cosinor2</code></td><td>Cosinor-Fit für eine Zeitreihe; cosinor2 ergänzt Populations-Cosinor und Gütemaße. Alternativ: <code>lm()</code> mit cos/sin-Termen – genau so in den Workshop-Skripten.</td></tr></table></div>
+<h3>Cosinor, Gruppen &amp; Mixed</h3>
+<div class="tw"><table class="t"><tr><th>Paket</th><th>Wofür</th></tr><tr><td><code>lme4 + emmeans</code></td><td>Mixed-Cosinor als lineares gemischtes Modell; transparent und schnell. Im Workshop verwendet.</td></tr><tr><td><code>GLMMcosinor</code></td><td>Mixed-Cosinor mit nicht-normalen Verteilungen (z. B. Poisson, negativ-binomial) – interessant für Zähldaten wie Laufradumdrehungen.</td></tr><tr><td><code>circacompare</code></td><td>Direkter Vergleich von MESOR, Amplitude und Phase zwischen zwei Gruppen.</td></tr><tr><td><code>cosinoRmixedeffects</code></td><td>Mixed-Cosinor mit Bootstrap-Intervallen (GitHub). Fallstricke siehe unten.</td></tr></table></div>
+<h3>Nichtparametrisch</h3>
+<div class="tw"><table class="t"><tr><th>Paket</th><th>Wofür</th></tr><tr><td><code>nparACT</code></td><td>IS, IV, RA, M10, L5 direkt aus einer Zeitreihe.</td></tr><tr><td><code>ActCR</code></td><td>IS, IV, RA und Cosinor; erwartet Minutendaten im Breitformat (1440 Spalten pro Tag).</td></tr></table></div>
+<h3>Rohdaten Aktigraphie</h3>
+<div class="tw"><table class="t"><tr><th>Paket</th><th>Wofür</th></tr><tr><td><code>GGIR</code></td><td>Verarbeitung von Rohbeschleunigung (z. B. GENEActiv, ActiGraph, Axivity) zu Aktivität, Schlaf und M10/L5. Nicht für bereits vorverarbeitete Activity Counts.</td></tr></table></div>
+<h3>Periodogramme &amp; Aktogramme</h3>
+<div class="tw"><table class="t"><tr><th>Paket</th><th>Wofür</th></tr><tr><td><code>rethomics (behavr, zeitgebr, ggetho)</code></td><td>Verhaltenszeitreihen, χ²- und Lomb-Scargle-Periodogramm, Aktogramme. Aus der Drosophila-Forschung, für jede Laufrad- oder Aktivitätsreihe nutzbar.</td></tr><tr><td><code>lomb</code></td><td>Lomb-Scargle-Periodogramm für Daten mit Lücken.</td></tr></table></div>
+<h3>Rhythmen in Omics-Daten</h3>
+<div class="tw"><table class="t"><tr><th>Paket</th><th>Wofür</th></tr><tr><td><code>MetaCycle, limorhyde, DiscoRhythm</code></td><td>Rhythmus-Detektion in Genexpressionsdaten (Ausblick).</td></tr></table></div>
+<h3>Statistik</h3>
+<div class="tw"><table class="t"><tr><th>Paket</th><th>Wofür</th></tr><tr><td><code>lme4, lmerTest</code></td><td>Gemischte Modelle; lmerTest ergänzt p-Werte.</td></tr><tr><td><code>emmeans</code></td><td>Geschätzte Randmittel und Kontraste, z. B. Blöcke innerhalb jeder Gruppe.</td></tr><tr><td><code>rstatix</code></td><td>Klassische Tests in Pipe-Schreibweise.</td></tr></table></div>
+<h3>Zirkuläre Statistik</h3>
+<div class="tw"><table class="t"><tr><th>Paket</th><th>Wofür</th></tr><tr><td><code>circular</code></td><td>Mittlere Phase, Rayleigh-Test, Phasen als Winkel.</td></tr></table></div>
+<h3>Darstellung</h3>
+<div class="tw"><table class="t"><tr><th>Paket</th><th>Wofür</th></tr><tr><td><code>ggplot2, ggpubr, patchwork</code></td><td>Polar- und Roseplots über <code>coord_polar()</code>, Signifikanzmarken, kombinierte Abbildungen.</td></tr></table></div>
+<h2>Fallstricke, die uns begegnet sind</h2>
+<div class="hint"><b>cosinoRmixedeffects – Akrophase in Radiant.</b> <code>get.means.ci.cosinor()</code> gibt die Akrophase im Bereich −2π bis 0 zurück. Die zusätzliche Zeile „PeakTime“ enthält dieselbe Größe in Stunden: PeakTime = −Akrophase · 24 / (2π). Ein <code>%% 24</code> auf die Radiant-Werte ergibt falsche Uhrzeiten.</div>
+<div class="hint"><b>cosinoRmixedeffects – nicht unter Windows.</b> <code>get.contrasts.ci.cosinor()</code> ruft intern <code>doMC::registerDoMC(8)</code> auf; doMC gibt es unter Windows nicht. Außerdem passt der Bootstrap das Modell standardmäßig 500-mal neu an – je nach Datensatz deutlich über 10 Minuten.</div>
+<div class="hint"><b>ActCR – Minutendaten erwartet.</b> Stundenwerte müssen erst auf ein 1440-Minuten-Raster aufgefüllt werden. Einfacher: IS und IV direkt aus den Stundenwerten berechnen (siehe <a href="analysebeispiele.html">Analysebeispiele</a>).</div>
+<div class="hint"><b>GGIR – nur Rohbeschleunigung.</b> Für bereits zu Activity Counts verdichtete Daten (z. B. MotionWatch-Exporte) nicht geeignet.</div>
+<footer>Christoph Berger · Alle Beispieldaten auf dieser Seite sind simuliert. · <a href="./">Workshop-Seite</a></footer>
+</main>
+</body>
+</html>

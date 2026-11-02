@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Analysebeispiele – Zirkadiane Analysen in R</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕐</text></svg>">
+<style>
+pre.code{font-family:'IBM Plex Mono',Menlo,Consolas,monospace;font-size:14.5px;line-height:1.5;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;white-space:pre}
+.tw{overflow-x:auto}
+table.t{border-collapse:collapse;font-size:15px;margin:10px 0}
+table.t th,table.t td{padding:6px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.t th{border-bottom:2px solid var(--ink)}
+table.t td.n{text-align:right;font-family:'IBM Plex Mono',monospace}
+figure{margin:16px 0}
+figure img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+figcaption{font-size:14px;color:var(--mut);margin-top:6px}
+.toc{columns:2;column-gap:32px}
+@media (max-width:640px){.toc{columns:1}}
+.hint{border-left:4px solid var(--orange);padding:10px 14px;background:var(--card);border-radius:0 10px 10px 0;margin:14px 0}
+</style>
+</head>
+<body>
+<main>
+<p><a href="./">Zurück zur Workshop-Seite</a></p>
+<h1>Analysebeispiele</h1>
+<p class="lead">Vom Rohdatenexport zu Kennwerten und Statistik – Schritt für Schritt, mit dem Code aus dem Workshop.</p>
+<div class="hint">Alle Daten auf dieser Seite sind <b>simuliert</b>. Sie haben denselben Aufbau wie echte MotionWare-Exporte und Laufrad-Tabellen, einschließlich der typischen Stolperfallen. <a href="workshop_R_public.zip">Projektordner herunterladen (R-Skripte + Daten)</a></div>
+<h2>Inhalt</h2>
+<ul class="toc">
+<li><a href="#a">A · MotionWatch 8: Features berechnen</a></li>
+<li><a href="#a1">A1 Einlesen</a></li><li><a href="#a2">A2 Qualitätskontrolle</a></li><li><a href="#a3">A3 Stundenwerte</a></li>
+<li><a href="#a4">A4 IS, IV, M10, L5, RA</a></li><li><a href="#a5">A5 Cosinor</a></li><li><a href="#a6">A6 Abbildungen</a></li>
+<li><a href="#b">B · Laufrad: 2 × 3-Design</a></li>
+<li><a href="#b1">B1 Einlesen und Zeitachse</a></li><li><a href="#b2">B2 Exploration</a></li><li><a href="#b3">B3 Kennwerte pro Tier und Block</a></li>
+<li><a href="#b4">B4 Mixed Model und Kontraste</a></li><li><a href="#b5">B5 Mixed-Cosinor</a></li><li><a href="#c">C · Was in den Methodenteil gehört</a></li>
+</ul>
+<h2>Vorbereitung</h2>
+<p>Projektordner entpacken, <code>workshop_R.Rproj</code> in RStudio öffnen und einmal <code>00_setup.R</code> ausführen. Alle Funktionen liegen in <code>R/funktionen.R</code>; die Formeln entsprechen eins zu eins den Folien.</p>
+<pre class="code"><code>source(&quot;R/funktionen.R&quot;)</code></pre>
+<h2 id="a">A · MotionWatch 8: Features berechnen</h2>
+<p>Fünf Personen, sieben Tage, 30-Sekunden-Epochen. Skript: <code>01_motionwatch.R</code>.</p>
+<h3 id="a1">A1 Einlesen</h3>
+<p>MotionWare exportiert pro Person eine CSV-Datei: Kopfzeilen mit Metadaten, dann <code>Date,Time,Activity (MW counts),Light (lux)</code>. Auf deutschen Rechnern steht der Lichtwert mit Dezimalkomma – die Zeile <code>158,39,5125</code> bedeutet Aktivität 158 und Licht 39,5125. Ein normales <code>read.csv()</code> zerlegt das falsch. <code>read_motionwatch()</code> trennt deshalb nur an den ersten drei Kommas.</p>
+<pre class="code"><code>mw &lt;- read_motionwatch_ordner(&quot;daten/motionwatch&quot;)   # liest alle CSV-Dateien des Ordners
+mw
+#&gt; datei  id  zeit  aktivitaet  licht  epoche_s</code></pre>
+<p>Neue Uhren? Einfach weitere Exporte in den Ordner legen – alle folgenden Schritte laufen über den ganzen Ordner.</p>
+<h3 id="a2">A2 Qualitätskontrolle</h3>
+<p>„n/a“ steht für Zeiten ohne Aufzeichnung. Bei Person05 fehlt fast der ganze erste Tag.</p>
+<pre class="code"><code>mw |&gt; group_by(id) |&gt;
+  summarise(beginn = min(zeit), ende = max(zeit), fehlend = mean(is.na(aktivitaet)))</code></pre>
+<figure><img src="img/mw_rohdaten.png" alt="Zeitreihen der Aktivität für fünf Personen mit markierten fehlenden Epochen" loading="lazy"><figcaption>Rohdaten pro Person; orange: fehlende Epochen.</figcaption></figure>
+<h3 id="a3">A3 Stundenwerte</h3>
+<p>IS, IV, M10 und L5 werden klassisch auf Stundenwerten berechnet. Eine Stunde zählt nur, wenn <b>alle</b> Epochen gültig sind. Mit dieser Regel stimmten M10 und L5 an echten Daten exakt mit MotionWare überein.</p>
+<pre class="code"><code>std &lt;- stunden_aggregieren(mw)
+# summe  = Aktivitätssumme der Stunde (für IS, IV, M10, L5)
+# mittel = mittlere Aktivität pro Epoche (für den Cosinor)</code></pre>
+<h3 id="a4">A4 IS, IV, M10, L5, RA</h3>
+<pre class="code"><code>npcra &lt;- function(x, uhrzeit) {
+  ok &lt;- !is.na(x); xx &lt;- x[ok]; n &lt;- length(xx); xm &lt;- mean(xx)
+  xh &lt;- tapply(xx, uhrzeit[ok], mean); p &lt;- length(xh)
+  IS &lt;- n * sum((xh - xm)^2) / (p * sum((xx - xm)^2))
+  d  &lt;- diff(x); d &lt;- d[!is.na(d)]                    # nur gültige Nachbarstunden
+  IV &lt;- n * sum(d^2) / ((n - 1) * sum((xx - xm)^2))
+  # M10 / L5: gleitende 10- bzw. 5-h-Fenster über das mittlere Profil
+  ...
+}
+
+np &lt;- std |&gt; arrange(id, stunde_start) |&gt; group_by(id) |&gt; reframe(npcra(summe, uhrzeit))</code></pre>
+<div class="tw"><table class="t"><tr><th>Person</th><th>IS</th><th>IV</th><th>RA</th><th>M10-Onset</th><th>L5-Onset</th></tr><tr><td>Person01</td><td class="n">0,55</td><td class="n">0,79</td><td class="n">0,95</td><td class="n">09:00</td><td class="n">01:00</td></tr><tr><td>Person02</td><td class="n">0,58</td><td class="n">0,60</td><td class="n">0,93</td><td class="n">08:00</td><td class="n">23:00</td></tr><tr><td>Person03</td><td class="n">0,59</td><td class="n">1,02</td><td class="n">0,94</td><td class="n">10:00</td><td class="n">02:00</td></tr><tr><td>Person04</td><td class="n">0,48</td><td class="n">0,94</td><td class="n">0,92</td><td class="n">13:00</td><td class="n">02:00</td></tr><tr><td>Person05</td><td class="n">0,58</td><td class="n">0,92</td><td class="n">0,94</td><td class="n">12:00</td><td class="n">03:00</td></tr></table></div>
+<p>Ausprobieren, wie sich die Werte bei mehr Jitter, Fragmentierung oder Lücken verändern: <a href="feature-labor.html">Feature-Labor</a>.</p>
+<h3 id="a5">A5 Cosinor</h3>
+<p>Der Cosinor ist ein lineares Modell mit Kosinus- und Sinusterm (Folie „Cosinor“). Amplitude und Akrophase werden aus den beiden Koeffizienten zurückgerechnet.</p>
+<pre class="code"><code>cosinor_lm &lt;- function(y, t, tau = 24) {
+  fit &lt;- lm(y ~ cos(2 * pi * t / tau) + sin(2 * pi * t / tau))
+  b   &lt;- coef(fit)
+  tibble(MESOR       = b[1],
+         Amplitude   = sqrt(b[2]^2 + b[3]^2),
+         Akrophase_h = (-atan2(-b[3], b[2]) * tau / (2 * pi)) %% tau,
+         R2          = summary(fit)$r.squared)
+}
+cos &lt;- std |&gt; filter(!is.na(mittel)) |&gt; group_by(id) |&gt;
+  reframe(cosinor_lm(mittel, uhrzeit + 0.5))           # +0.5: Mitte der Stunde</code></pre>
+<div class="tw"><table class="t"><tr><th>Person</th><th>MESOR</th><th>Amplitude</th><th>Akrophase</th><th>R²</th></tr><tr><td>Person01</td><td class="n">106,9</td><td class="n">98,4</td><td class="n">14:32</td><td class="n">0,40</td></tr><tr><td>Person02</td><td class="n">99,3</td><td class="n">84,4</td><td class="n">13:40</td><td class="n">0,39</td></tr><tr><td>Person03</td><td class="n">97,2</td><td class="n">78,9</td><td class="n">16:14</td><td class="n">0,44</td></tr><tr><td>Person04</td><td class="n">93,7</td><td class="n">69,5</td><td class="n">15:59</td><td class="n">0,34</td></tr><tr><td>Person05</td><td class="n">90,9</td><td class="n">79,1</td><td class="n">17:53</td><td class="n">0,43</td></tr></table></div>
+<p>Akrophase und M10-Onset liegen mehrere Stunden auseinander: Die Akrophase ist der Gipfel einer Sinuskurve, der M10-Onset der <i>Beginn</i> des aktivsten 10-Stunden-Fensters.</p>
+<h3 id="a6">A6 Abbildungen</h3>
+<pre class="code"><code>aktogramm(mw)      # doppelt geplottet, Licht gelb hinterlegt
+polarplot(std)     # mittleres 24-h-Profil</code></pre>
+<figure><img src="img/mw_aktogramm.png" alt="Doppelt geplottetes Aktogramm für fünf simulierte Personen" loading="lazy"><figcaption>Doppelt geplottetes Aktogramm: jede Zeile zeigt Tag n und Tag n+1; gelb: Licht (log-skaliert).</figcaption></figure>
+<figure><img src="img/mw_polar.png" alt="Polarplots der mittleren Tagesprofile" loading="lazy"><figcaption>Polarplot des mittleren Tagesprofils pro Person.</figcaption></figure>
+<figure><img src="img/mw_meq.png" alt="Scatterplot MEQ gegen M10-Onset" loading="lazy"><figcaption>Chronotyp-Fragebogen (MEQ, simuliert) gegen M10-Onset.</figcaption></figure>
+<h2 id="b">B · Laufrad: 2 × 3-Design</h2>
+<p>21 Mäuse, stündliche Laufradsummen über 29 Versuchstage. <b>Gruppe</b> (zwischen Tieren): Control vs. Starvation. <b>Block</b> (Messwiederholung): baseline → acute → chronic. Skript: <code>02_laufrad_2x3.R</code>.</p>
+<h3 id="b1">B1 Einlesen und Zeitachse</h3>
+<p>Ein Versuchstag läuft von 14 bis 13 Uhr (23 Stundenwerte). Die Zeitstempel in der Excel-Tabelle sind gemischt: Text im US-Format („3/13/2024 9:59:59 PM“) und von Excel umgewandelte Daten, bei denen Tag und Monat vertauscht sein können. Dazu kommt ein AM/PM-Fehler. <code>read_laufrad()</code> vertraut deshalb nur der <b>Uhrzeit</b> und baut die Zeitachse aus Versuchstag und Stunde auf; verletzte Reihenfolgen werden erkannt und korrigiert.</p>
+<pre class="code"><code>lr &lt;- read_laufrad(&quot;daten/laufrad/laufrad_simuliert.xlsx&quot;)
+#&gt; Korrigiert (AM/PM): Versuchstag 3
+lr
+#&gt; id  gruppe  block  versuchstag  stunde  rel  t_h  rad</code></pre>
+<h3 id="b2">B2 Exploration</h3>
+<figure><img src="img/lr_aktogramm.png" alt="Heatmap-Aktogramm für Kontroll- und Starvation-Gruppe über 29 Versuchstage" loading="lazy"><figcaption>Aktogramm als Heatmap, Gruppenmittel; orange: Blockwechsel.</figcaption></figure>
+<figure><img src="img/lr_polar.png" alt="Polarplots im 2-mal-3-Raster" loading="lazy"><figcaption>Mittleres Tagesprofil in allen sechs Zellen des Designs. Unter chronischer Starvation entsteht ein Gipfel am Vormittag.</figcaption></figure>
+<h3 id="b3">B3 Kennwerte pro Tier und Block</h3>
+<p>Für IV werden fehlende Stunden als NA eingefügt, damit keine Differenz über eine Lücke gebildet wird. IS rechnet mit p = 23, weil 13–14 Uhr nie gemessen wird.</p>
+<pre class="code"><code>voll  &lt;- laufrad_vervollstaendigen(lr)
+kw_np &lt;- voll |&gt; group_by(id, gruppe, block) |&gt; reframe(npcra(rad, stunde))
+kw_cos &lt;- lr |&gt; filter(!is.na(rad)) |&gt; group_by(id, gruppe, block) |&gt; reframe(cosinor_lm(rad, t_h))
+kw &lt;- left_join(kw_np, kw_cos, by = c(&quot;id&quot;, &quot;gruppe&quot;, &quot;block&quot;))</code></pre>
+<figure><img src="img/lr_kennwerte.png" alt="Verlauf von IS, IV, RA und Amplitude über die drei Blöcke" loading="lazy"><figcaption>Kennwerte pro Tier (dünne Linien) und Gruppenmittel (dicke Linien).</figcaption></figure>
+<h3 id="b4">B4 Mixed Model und Kontraste</h3>
+<p>Jedes Tier liefert drei Werte – einen pro Block. Ein zufälliger Achsenabschnitt pro Tier berücksichtigt die Messwiederholung.</p>
+<pre class="code"><code>library(lme4); library(lmerTest); library(emmeans)
+
+m_is &lt;- lmer(IS ~ gruppe * block + (1 | id), data = kw)
+anova(m_is)                                   # Haupteffekte und Interaktion
+pairs(emmeans(m_is, ~ block | gruppe), adjust = &quot;holm&quot;)   # Blöcke je Gruppe
+pairs(emmeans(m_is, ~ gruppe | block))                     # Gruppen je Block</code></pre>
+<div class="tw"><table class="t"><tr><th>Kennwert</th><th>Effekt</th><th>F</th><th>p</th></tr><tr><td>IS</td><td>gruppe</td><td class="n">23,4</td><td class="n">&lt; 0,001</td></tr><tr><td>IS</td><td>block</td><td class="n">1,5</td><td class="n">0,224</td></tr><tr><td>IS</td><td>gruppe × block</td><td class="n">4,8</td><td class="n">0,012</td></tr><tr><td>IV</td><td>gruppe</td><td class="n">15,5</td><td class="n">&lt; 0,001</td></tr><tr><td>IV</td><td>block</td><td class="n">2,8</td><td class="n">0,074</td></tr><tr><td>IV</td><td>gruppe × block</td><td class="n">8,9</td><td class="n">&lt; 0,001</td></tr><tr><td>RA</td><td>gruppe</td><td class="n">44,4</td><td class="n">&lt; 0,001</td></tr><tr><td>RA</td><td>block</td><td class="n">27,1</td><td class="n">&lt; 0,001</td></tr><tr><td>RA</td><td>gruppe × block</td><td class="n">38,3</td><td class="n">&lt; 0,001</td></tr><tr><td>MESOR</td><td>gruppe</td><td class="n">15,9</td><td class="n">&lt; 0,001</td></tr><tr><td>MESOR</td><td>block</td><td class="n">58,5</td><td class="n">&lt; 0,001</td></tr><tr><td>MESOR</td><td>gruppe × block</td><td class="n">61,9</td><td class="n">&lt; 0,001</td></tr></table></div>
+<p>Entscheidend im 2 × 3-Design ist die <b>Interaktion</b>: Verändert sich ein Kennwert über die Blöcke nur in der Starvation-Gruppe?</p>
+<h3 id="b5">B5 Mixed-Cosinor</h3>
+<p>Jede der sechs Zellen bekommt eigene MESOR-, Kosinus- und Sinuskoeffizienten; jedes Tier darf zusätzlich eigenes Niveau, eigene Amplitude und Phase haben. Das ist dasselbe Modell, das <code>cosinoRmixedeffects</code> intern rechnet – hier transparent mit lme4.</p>
+<pre class="code"><code>d_cos &lt;- lr |&gt; filter(!is.na(rad)) |&gt;
+  mutate(rrr = cos(2 * pi * t_h / 24), sss = sin(2 * pi * t_h / 24),
+         zelle = interaction(block, gruppe, sep = &quot;,&quot;))
+
+fit_cos &lt;- lmer(rad ~ 0 + zelle + zelle:rrr + zelle:sss + (1 + rrr + sss | id),
+                data = d_cos, control = lmerControl(optimizer = &quot;bobyqa&quot;))
+
+cos_zellen    &lt;- cosinor_zellen(fit_cos)            # MESOR, Amplitude, Akrophase + 95-%-Intervall
+cos_kontraste &lt;- cosinor_kontraste(fit_cos, paare)  # Differenzen zwischen Zellen</code></pre>
+<p>Die Intervalle entstehen aus 2000 Ziehungen der festen Effekte (multivariate Normalverteilung) – in Sekunden statt in Minuten wie beim Bootstrap. Phasendifferenzen werden im Kreis gerechnet (−12 bis +12 h).</p>
+<figure><img src="img/lr_cosinor_parameter.png" alt="Punkt-Intervall-Diagramme für MESOR, Amplitude und Akrophase" loading="lazy"><figcaption>Geschätzte Cosinor-Parameter mit 95-%-Intervall pro Zelle.</figcaption></figure>
+<figure><img src="img/lr_cosinor_kurven.png" alt="Cosinor-Kurven über den Stundenmitteln im 2-mal-3-Raster" loading="lazy"><figcaption>Cosinor-Kurven (Linie) und Stundenmittel (Punkte). Wo die Punkte von der Kurve abweichen, ist das Profil nicht sinusförmig.</figcaption></figure>
+<div class="tw"><table class="t"><tr><th>Vergleich</th><th>Δ Akrophase (h)</th><th>95-%-Intervall</th><th>p</th></tr><tr><td>acute,Control vs. baseline,Control</td><td class="n">0,2</td><td>-0,3 bis 0,7</td><td class="n">0,417</td></tr><tr><td>chronic,Control vs. baseline,Control</td><td class="n">0,0</td><td>-0,4 bis 0,4</td><td class="n">0,959</td></tr><tr><td>acute,Starvation vs. baseline,Starvation</td><td class="n">-0,5</td><td>-0,9 bis -0,1</td><td class="n">0,013</td></tr><tr><td>chronic,Starvation vs. baseline,Starvation</td><td class="n">-7,6</td><td>-8,7 bis -6,6</td><td class="n">&lt; 0,001</td></tr><tr><td>baseline,Starvation vs. baseline,Control</td><td class="n">-0,1</td><td>-0,7 bis 0,5</td><td class="n">0,746</td></tr><tr><td>acute,Starvation vs. acute,Control</td><td class="n">-0,8</td><td>-1,4 bis -0,1</td><td class="n">0,022</td></tr><tr><td>chronic,Starvation vs. chronic,Control</td><td class="n">-7,7</td><td>-8,6 bis -6,7</td><td class="n">&lt; 0,001</td></tr></table></div>
+<h2 id="c">C · Was in den Methodenteil gehört</h2>
+<ul>
+<li><b>Datenbasis:</b> Gerät, Epochenlänge, Anzahl Tage, Analysezeitraum.</li>
+<li><b>Zeitliche Auflösung</b> für IS und IV (klassisch 60 min) – die Werte hängen stark davon ab.</li>
+<li><b>Umgang mit fehlenden Daten:</b> z. B. „nur vollständige Stunden; IV nur aus Paaren gültiger Nachbarstunden“.</li>
+<li><b>Cosinor:</b> Periode (24 h), Modell (Einzel-, Populations- oder Mixed-Cosinor), Akrophase <b>in Stunden</b> und mit Bezug (Uhrzeit oder ZT).</li>
+<li><b>Mixed Models:</b> zufällige Effekte, Freiheitsgrade (z. B. Kenward-Roger), Korrektur für multiples Testen.</li>
+<li><b>Software und Pakete</b> mit Versionsnummern (<code>sessionInfo()</code>).</li>
+</ul>
+<footer>Christoph Berger · Alle Beispieldaten auf dieser Seite sind simuliert. · <a href="./">Workshop-Seite</a></footer>
+</main>
+</body>
+</html>
